@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>DOOM3JS - Retro FPS</title>
+  <link rel="stylesheet" href="./styles/game.css">
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="c"></canvas>
+    <div id="damageOverlay"></div>
+    <div id="crosshair"></div>
+
+    <div id="hud">
+      <div class="hud-block doom-panel">
+        <div class="hud-label">SAUDE</div>
+        <div class="hud-value" id="healthVal">100</div>
+      </div>
+      <div class="hud-block doom-panel">
+        <div class="hud-label">ARMADURA</div>
+        <div class="hud-value" id="armorVal">50</div>
+      </div>
+      <div id="faceDisplay">>:|</div>
+      <div class="hud-block doom-panel">
+        <div class="hud-label">MORTES</div>
+        <div class="hud-value" id="killVal">0</div>
+      </div>
+      <div class="hud-block doom-panel">
+        <div class="hud-label">MUNICAO</div>
+        <div id="ammoBar"></div>
+      </div>
+      <div class="hud-block doom-panel">
+        <div class="hud-label">STAMINA</div>
+        <div id="staminaWrap"><div id="staminaBar"></div></div>
+      </div>
+      <div class="hud-block doom-panel">
+        <div class="hud-label">DIFICULDADE</div>
+        <div class="hud-value" id="difficultyVal" style="font-size:20px; max-width:180px; text-align:center;">VIOLENCIA PATROCINADA</div>
+      </div>
+    </div>
+
+    <div id="weaponView">🔫</div>
+    <canvas id="minimap" width="120" height="120"></canvas>
+    <div id="killFeed"></div>
+    <div id="waveMsg">ONDA 1</div>
+
+    <div id="controls">
+      WASD - Mover<br>
+      MOUSE - Olhar<br>
+      CLICK - Disparar<br>
+      R - Recarregar<br>
+      C - Camara<br>
+      L - Luzes<br>
+      SHIFT - Sprint<br>
+      ESC - Pausa<br>
+      PICKUPS - VIDA/ARMADURA/MUNICAO
+    </div>
+
+    <div id="overlay">
+      <h1>DOOM3JS</h1>
+      <p>RETRO GAMING · THREE.JS · REFACTORED</p>
+      <p style="font-size:18px; color:#884400;">Sobrevive as ondas, enfrenta bosses e recolhe pickups</p>
+      <div id="difficultyMenu">
+        <h3>ESCOLHE A DIFICULDADE</h3>
+        <label><input type="radio" name="difficulty" value="easy"> Facil (Carne Fresca)</label>
+        <label><input type="radio" name="difficulty" value="medium" checked> Medio (Violencia Patrocinada)</label>
+        <label><input type="radio" name="difficulty" value="hard"> Dificil (Vai correr mal)</label>
+        <label><input type="radio" name="difficulty" value="nightmare"> Muito Dificil (Arrependimento imediato)</label>
+      </div>
+      <button class="main-btn" onclick="startGame()">[ INICIAR ]</button>
+    </div>
+
+    <div id="deathScreen">
+      <h2>MORREU</h2>
+      <p style="font-size:32px; color:#ff8800;" id="finalScore"></p>
+      <button class="main-btn" onclick="restartGame()" style="font-size:28px;">[ TENTAR NOVAMENTE ]</button>
+    </div>
+
+    <div id="pauseScreen">
+      <h2>PAUSA</h2>
+      <p>Jogo interrompido</p>
+      <div class="pause-actions">
+        <button class="main-btn" onclick="resumeGame()">[ RESUMIR ]</button>
+        <button class="main-btn" onclick="backToMainMenu()">[ MENU INICIAL ]</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

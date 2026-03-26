@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'VT323', monospace;
+  color: #ff4400;
+}
+
+#gameContainer { position: relative; width: 100vw; height: 100vh; }
+#c { display: block; width: 100%; height: 100%; }
+
+#hud {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  min-height: 112px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 90, 0, 0.06), rgba(255, 90, 0, 0.06) 2px, transparent 2px, transparent 4px),
+    linear-gradient(to bottom, #2a1404, #120800);
+  border-top: 4px solid #8f3d00;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 8px 16px;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: inset 0 10px 0 #5b2400, inset 0 -10px 0 #250f00;
+}
+
+.hud-block { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.doom-panel {
+  border: 3px solid #8c3a00;
+  background: linear-gradient(to bottom, #3a1603, #231005);
+  padding: 4px 8px;
+  min-width: 100px;
+}
+.hud-label { font-size: 14px; color: #cc3300; letter-spacing: 3px; font-family: 'Share Tech Mono', monospace; }
+.hud-value { font-size: 44px; color: #ffb347; text-shadow: 2px 2px 0 #2a0e00; line-height: 1; }
+.hud-value.low { color: #ff0000; animation: pulse 0.5s infinite; }
+
+#faceDisplay {
+  width: 110px; height: 82px;
+  background: linear-gradient(to bottom, #3a1a0c, #241106);
+  border: 3px solid #8c3a00; display: flex;
+  align-items: center; justify-content: center; font-size: 34px;
+  color: #ffd27a; text-shadow: 2px 2px 0 #000;
+  letter-spacing: 2px;
+}
+
+#ammoBar { display: flex; gap: 4px; flex-wrap: wrap; max-width: 180px; justify-content: flex-end; }
+.ammo-pip { width: 10px; height: 20px; background: #ff6600; box-shadow: 0 0 5px #ff4400; }
+.ammo-pip.empty { background: #330000; box-shadow: none; }
+
+#staminaWrap {
+  width: 140px; height: 12px; border: 1px solid #ff4400;
+  background: #220800; box-shadow: inset 0 0 8px #000;
+}
+#staminaBar {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #ff4400, #ffaa33);
+  transition: width 0.1s;
+}
+
+#crosshair {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% - 50px));
+  width: 20px; height: 20px; pointer-events: none; z-index: 5;
+}
+#crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,68,0,0.8); }
+#crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+#crosshair::after { height: 2px; width: 100%; top: 50%; transform: translateY(-50%); }
+
+#overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 100; gap: 20px;
+}
+#overlay h1 {
+  font-size: 96px; color: #ff2200;
+  text-shadow: 0 0 30px #ff0000, 0 0 60px #cc0000, 4px 4px 0 #880000;
+  letter-spacing: 8px; animation: flicker 3s infinite;
+}
+#overlay p {
+  font-size: 24px; color: #ff8800; letter-spacing: 4px;
+  text-align: center; max-width: 560px; line-height: 1.6;
+}
+
+.main-btn {
+  margin-top: 20px; padding: 16px 48px; background: transparent;
+  border: 3px solid #ff4400; color: #ff4400; font-family: 'VT323', monospace;
+  font-size: 36px; letter-spacing: 6px; cursor: pointer; text-shadow: 0 0 10px #ff4400;
+  box-shadow: 0 0 20px #ff4400 inset, 0 0 20px #ff4400; transition: all 0.2s;
+}
+.main-btn:hover { background: #ff4400; color: #000; box-shadow: 0 0 40px #ff4400; }
+
+#difficultyMenu {
+  border: 2px solid #a34a00;
+  background: rgba(36, 12, 0, 0.9);
+  padding: 14px 18px;
+  min-width: 430px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#difficultyMenu h3 {
+  font-size: 28px;
+  color: #ff6d00;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+#difficultyMenu label {
+  font-size: 24px;
+  color: #ffc266;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+#difficultyMenu input[type="radio"] {
+  accent-color: #ff5a00;
+  transform: scale(1.1);
+}
+
+#killFeed { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; z-index: 10; }
+.kill-msg { font-size: 18px; color: #ff6600; text-align: right; animation: fadeOut 2s forwards; font-family: 'Share Tech Mono', monospace; }
+
+#waveMsg {
+  position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+  font-size: 64px; color: #ff4400; text-shadow: 0 0 30px #ff2200;
+  pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 10; white-space: nowrap;
+}
+
+#damageOverlay {
+  position: absolute; inset: 0; pointer-events: none; z-index: 6; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255,0,0,0.6) 100%);
+  transition: opacity 0.1s;
+}
+
+#weaponView {
+  position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+  pointer-events: none; z-index: 5; font-size: 80px; line-height: 1;
+  filter: drop-shadow(0 0 10px #ff6600); transition: transform 0.1s;
+}
+
+#controls {
+  position: absolute; top: 20px; left: 20px; font-size: 14px; color: #884400;
+  pointer-events: none; z-index: 10; font-family: 'Share Tech Mono', monospace; line-height: 1.8;
+}
+
+#minimap {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  opacity: 0.7; pointer-events: none; z-index: 10; border: 2px solid #ff440066;
+}
+
+#deathScreen {
+  display: none; position: absolute; inset: 0; background: rgba(100,0,0,0.85);
+  z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+}
+#deathScreen h2 { font-size: 96px; color: #ff0000; text-shadow: 0 0 40px #ff0000; animation: pulse 1s infinite; }
+
+#pauseScreen {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 190;
+  background: rgba(0, 0, 0, 0.84);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+#pauseScreen h2 {
+  font-size: 92px;
+  color: #ff5d00;
+  text-shadow: 0 0 30px #ff2a00;
+}
+#pauseScreen p {
+  font-size: 32px;
+  color: #ffba73;
+}
+.pause-actions {
+  display: flex;
+  gap: 16px;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes flicker { 0%, 95%, 100% { opacity: 1; } 96% { opacity: 0.4; } 98% { opacity: 0.8; } }
+@keyframes fadeOut { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
