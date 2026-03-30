@@ -3,8 +3,14 @@ export const CELL = 4;
 export const G = {
   health: 100,
   armor: 50,
-  ammo: 30,
-  maxAmmo: 30,
+  ammo: 2,
+  maxAmmo: 2,
+  ammoShotgun: 2,
+  ammoMagnum: 6,
+  reserveShotgun: 20,
+  reserveMagnum: 60,
+  weapon: 'shotgun',
+  weaponSwitching: false,
   kills: 0,
   wave: 1,
   running: false,
@@ -23,7 +29,8 @@ export const G = {
   enemySpeedMult: 1,
   waveCountBonus: 0,
   pickupChance: 0.4,
-  playerDamageMult: 1
+  playerDamageMult: 1,
+  nextShotAtMs: 0
 };
 
 export const player = {
@@ -31,7 +38,9 @@ export const player = {
   z: 5 * CELL,
   yaw: 0,
   pitch: 0,
-  height: 1.6
+  height: 1.6,
+  jumpVy: 0,
+  jumpOffset: 0
 };
 
 export const MAP = [
@@ -60,16 +69,26 @@ export const MAP = [
 export function resetState() {
   G.health = 100;
   G.armor = 50;
-  G.ammo = 30;
+  G.weapon = 'shotgun';
+  G.weaponSwitching = false;
+  G.ammoShotgun = 2;
+  G.ammoMagnum = 6;
+  G.reserveShotgun = 20;
+  G.reserveMagnum = 60;
+  G.ammo = 2;
+  G.maxAmmo = 2;
   G.kills = 0;
   G.wave = 1;
   G.reloading = false;
   G.shootCooldown = 0;
+  G.nextShotAtMs = 0;
   G.stamina = G.maxStamina;
   player.x = 5 * CELL;
   player.z = 5 * CELL;
   player.yaw = 0;
   player.pitch = 0;
+  player.jumpVy = 0;
+  player.jumpOffset = 0;
 }
 
 export function applyDifficulty(key) {
@@ -78,7 +97,6 @@ export function applyDifficulty(key) {
       label: 'CARNE FRESCA',
       health: 125,
       armor: 80,
-      ammo: 36,
       stamina: 130,
       enemyHealthMult: 0.85,
       enemyDamageMult: 0.75,
@@ -91,7 +109,6 @@ export function applyDifficulty(key) {
       label: 'VIOLENCIA PATROCINADA',
       health: 100,
       armor: 50,
-      ammo: 30,
       stamina: 100,
       enemyHealthMult: 1,
       enemyDamageMult: 1,
@@ -104,7 +121,6 @@ export function applyDifficulty(key) {
       label: 'VAI CORRER MAL',
       health: 90,
       armor: 35,
-      ammo: 26,
       stamina: 95,
       enemyHealthMult: 1.25,
       enemyDamageMult: 1.3,
@@ -117,7 +133,6 @@ export function applyDifficulty(key) {
       label: 'ARREPENDIMENTO IMEDIATO',
       health: 80,
       armor: 20,
-      ammo: 22,
       stamina: 85,
       enemyHealthMult: 1.55,
       enemyDamageMult: 1.6,
@@ -141,7 +156,13 @@ export function applyDifficulty(key) {
 
   G.health = selected.health;
   G.armor = selected.armor;
-  G.maxAmmo = selected.ammo;
-  G.ammo = selected.ammo;
   G.stamina = selected.stamina;
+  G.weapon = 'shotgun';
+  G.ammoShotgun = 2;
+  G.ammoMagnum = 6;
+  G.reserveShotgun = 20;
+  G.reserveMagnum = 60;
+  G.ammo = 2;
+  G.maxAmmo = 2;
+  G.nextShotAtMs = 0;
 }

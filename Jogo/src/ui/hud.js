@@ -8,7 +8,8 @@ export function createHUD(state) {
     waveMsg: document.getElementById('waveMsg'),
     damageOverlay: document.getElementById('damageOverlay'),
     staminaBar: document.getElementById('staminaBar'),
-    difficulty: document.getElementById('difficultyVal')
+    difficulty: document.getElementById('difficultyVal'),
+    weaponName: document.getElementById('weaponNameVal')
   };
 
   function updateHUD() {
@@ -17,6 +18,9 @@ export function createHUD(state) {
     const sPct = Math.max(0, (state.stamina / state.maxStamina) * 100);
     els.staminaBar.style.width = `${sPct}%`;
     els.difficulty.textContent = state.difficultyLabel;
+    const w =
+      state.weapon === 'magnum' ? 'MAGNUM' : state.weapon === 'axe' ? 'MACHADO' : 'SHOTGUN';
+    if (els.weaponName) els.weaponName.textContent = w;
     if (state.health > 75) els.face.textContent = '>:|';
     else if (state.health > 50) els.face.textContent = '>:/';
     else if (state.health > 25) els.face.textContent = 'D:';
@@ -27,11 +31,28 @@ export function createHUD(state) {
 
   function updateAmmoBar() {
     els.ammoBar.innerHTML = '';
-    for (let i = 0; i < state.maxAmmo; i++) {
-      const pip = document.createElement('div');
-      pip.className = `ammo-pip${i < state.ammo ? '' : ' empty'}`;
-      els.ammoBar.appendChild(pip);
+    if (state.weapon === 'axe') {
+      const line = document.createElement('div');
+      line.className = 'ammo-fraction ammo-melee';
+      line.textContent = 'CORPO A CORPO';
+      els.ammoBar.appendChild(line);
+      return;
     }
+    const mag = state.weapon === 'shotgun' ? state.ammoShotgun : state.ammoMagnum;
+    const res = state.weapon === 'shotgun' ? state.reserveShotgun : state.reserveMagnum;
+    const maxMag = state.weapon === 'shotgun' ? 2 : 6;
+    const row = document.createElement('div');
+    row.className = 'ammo-pips-row';
+    for (let i = 0; i < maxMag; i++) {
+      const pip = document.createElement('div');
+      pip.className = `ammo-pip${i < mag ? '' : ' empty'}`;
+      row.appendChild(pip);
+    }
+    const frac = document.createElement('div');
+    frac.className = 'ammo-fraction';
+    frac.textContent = `${mag} / ${res}`;
+    els.ammoBar.appendChild(row);
+    els.ammoBar.appendChild(frac);
   }
 
   function showWaveMsg(text) {

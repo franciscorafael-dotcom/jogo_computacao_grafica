@@ -1,0 +1,8 @@
+Model Information:
+* title:	PSX Bloody Fire Axe
+* source:	https://sketchfab.com/3d-models/psx-bloody-fire-axe-d17f0ddd6d354906b861d648834c6024
+* author:	Charckes (https://sketchfab.com/charlesmoch)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works

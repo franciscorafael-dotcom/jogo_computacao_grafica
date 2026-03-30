@@ -2,12 +2,17 @@ import * as THREE from 'three';
 
 export const keys = {};
 
+let wasSpaceDown = false;
+
 export function clearInputState() {
   for (const key in keys) keys[key] = false;
+  wasSpaceDown = false;
 }
 
 export function bindPlayerInput(ctx) {
-  const { state, player, canvas, toggleCamera, toggleLight, reload, shoot, togglePause } = ctx;
+  const {
+    state, player, canvas, toggleCamera, toggleLight, reload, shoot, togglePause, selectWeapon
+  } = ctx;
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Escape' && state.running) {
       e.preventDefault();
@@ -15,10 +20,16 @@ export function bindPlayerInput(ctx) {
       return;
     }
     if (state.paused) return;
+    if (e.code === 'Space' && state.running) {
+      e.preventDefault();
+    }
     keys[e.code] = true;
     if (e.code === 'KeyC') toggleCamera();
     if (e.code === 'KeyL') toggleLight();
     if (e.code === 'KeyR') reload();
+    if (e.code === 'Digit1' && selectWeapon) selectWeapon('shotgun');
+    if (e.code === 'Digit2' && selectWeapon) selectWeapon('magnum');
+    if (e.code === 'Digit3' && selectWeapon) selectWeapon('axe');
   });
   document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
@@ -40,6 +51,10 @@ export function bindPlayerInput(ctx) {
   });
 }
 
+/** Mesmo tempo de voo (~2.5× o original); altura ≈ metade (g e v0 ambos /2). */
+const GRAVITY = 0.004;
+const JUMP_VEL = 0.155;
+
 export function updatePlayer(ctx) {
   const { state, player, camera, pointLight, isWall, updateHUD } = ctx;
   const radius = 0.35;
@@ -51,6 +66,19 @@ export function updatePlayer(ctx) {
   if (sprinting) state.stamina = Math.max(0, state.stamina - 0.8);
   else state.stamina = Math.min(state.maxStamina, state.stamina + 0.45);
   if (state.stamina <= 0) speed = 0.09;
+
+  const spaceDown = keys.Space === true;
+  if (spaceDown && !wasSpaceDown && player.jumpOffset <= 0.01 && player.jumpVy <= 0) {
+    player.jumpVy = JUMP_VEL;
+  }
+  wasSpaceDown = spaceDown;
+
+  player.jumpVy -= GRAVITY;
+  player.jumpOffset += player.jumpVy;
+  if (player.jumpOffset <= 0) {
+    player.jumpOffset = 0;
+    player.jumpVy = 0;
+  }
 
   const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -77,15 +105,13 @@ export function updatePlayer(ctx) {
   if (!blockedX) player.x = nx;
   if (!blockedZ) player.z = nz;
 
-  camera.position.set(player.x, player.height, player.z);
+  const t = Date.now() * 0.008;
+  const bob = (moving && player.jumpOffset <= 0.02) ? Math.sin(t * 2) * 0.06 : 0;
+  camera.position.set(player.x, player.height + player.jumpOffset + bob, player.z);
   camera.rotation.order = 'YXZ';
   camera.rotation.y = player.yaw;
   camera.rotation.x = player.pitch;
 
-  if (dx !== 0 || dz !== 0) {
-    const t = Date.now() * 0.008;
-    camera.position.y = player.height + Math.sin(t * 2) * 0.06;
-  }
   pointLight.position.set(player.x, 2, player.z);
   updateHUD();
 }

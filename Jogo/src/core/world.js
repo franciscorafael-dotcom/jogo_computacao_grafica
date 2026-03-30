@@ -21,18 +21,21 @@ function makeWallTexture() {
 }
 
 function makeFloorTexture() {
-  const size = 64;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
-  for (let y = 0; y < size; y += 16) {
-    for (let x = 0; x < size; x += 16) {
-      const v = 20 + Math.random() * 15;
-      ctx.fillStyle = `rgb(${v},${v},${v})`;
-      ctx.fillRect(x, y, 15, 15);
+  const tex = new THREE.TextureLoader().load('./assets/floor.png', undefined, undefined, () => {
+    // Fallback to procedural if fails
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    for (let y = 0; y < size; y += 16) {
+      for (let x = 0; x < size; x += 16) {
+        const v = 20 + Math.random() * 15;
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(x, y, 15, 15);
+      }
     }
-  }
-  const tex = new THREE.CanvasTexture(c);
+    return new THREE.CanvasTexture(c);
+  });
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(4, 4);
   return tex;
@@ -40,8 +43,20 @@ function makeFloorTexture() {
 
 export function createWorld(scene) {
   const wallTex = makeWallTexture();
-  const floorTex = makeFloorTexture();
   const wallMat = new THREE.MeshLambertMaterial({ map: wallTex });
+  const texLoader = new THREE.TextureLoader();
+  texLoader.load(
+    './assets/parede1.png',
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(1, 1);
+      wallMat.map = loaded;
+      wallMat.needsUpdate = true;
+    },
+    undefined,
+    () => {}
+  );
+  const floorTex = makeFloorTexture();
   const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x666666 });
   const ceilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
 

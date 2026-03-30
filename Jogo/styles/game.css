@@ -50,9 +50,37 @@ body {
   letter-spacing: 2px;
 }
 
-#ammoBar { display: flex; gap: 4px; flex-wrap: wrap; max-width: 180px; justify-content: flex-end; }
+#ammoBar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 200px;
+  justify-content: flex-end;
+}
+.ammo-pips-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .ammo-pip { width: 10px; height: 20px; background: #ff6600; box-shadow: 0 0 5px #ff4400; }
 .ammo-pip.empty { background: #330000; box-shadow: none; }
+.ammo-melee {
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #cc8866;
+}
+.ammo-fraction {
+  font-size: 28px;
+  color: #ffb347;
+  text-shadow: 2px 2px 0 #2a0e00;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.menu-mute {
+  font-size: 20px;
+  color: #cc8866;
+  cursor: pointer;
+  user-select: none;
+}
+.menu-mute input { margin-right: 8px; transform: scale(1.2); vertical-align: middle; }
 
 #staminaWrap {
   width: 140px; height: 12px; border: 1px solid #ff4400;

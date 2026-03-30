@@ -1,0 +1,11 @@
+Model Information:
+* title:	Barrel
+* source:	https://sketchfab.com/3d-models/barrel-0aaa1d37b15f419a97a3368f09f058f5
+* author:	Arrangemonk (https://sketchfab.com/Arrangemonk9000)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Barrel" (https://sketchfab.com/3d-models/barrel-0aaa1d37b15f419a97a3368f09f058f5) by Arrangemonk (https://sketchfab.com/Arrangemonk9000) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -1,42 +1,88 @@
 import * as THREE from 'three';
 import { enemies } from './enemies.js';
 import { maybeSpawnPickup } from './pickups.js';
-
-export const bullets = [];
-
-const bulletGeom = new THREE.SphereGeometry(0.12, 6, 6);
-const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+import {
+  getWeaponConfig,
+  getCurrentAmmo,
+  setCurrentAmmo,
+  getReserveAmmo,
+  setReserveAmmoForWeapon
+} from './weapons.js';
 
 export function createCombat(ctx) {
-  const { scene, state, camera, setKillCount, addKillMsg, updateHUD, updateAmmoBar, spawnNextWave, showWaveMsg } = ctx;
+  const {
+    scene, state, camera, setKillCount, addKillMsg, updateHUD, updateAmmoBar, spawnNextWave, showWaveMsg,
+    onShoot, onReloadStart, onReloadEnd, getMuzzleWorldPosition, canShoot, onDryFire, onAxeSwing
+  } = ctx;
 
   function shoot() {
-    if (state.ammo <= 0 || state.reloading || state.shootCooldown > 0) return;
-    state.ammo--;
-    state.shootCooldown = 8;
+    if (canShoot && !canShoot()) return;
+    if (state.reloading) return;
+    const nowMs = performance.now();
+    const cfg = getWeaponConfig(state.weapon);
+
+    if (state.weapon === 'axe') {
+      if (nowMs < state.nextShotAtMs) return;
+      if (onAxeSwing) onAxeSwing();
+      state.nextShotAtMs = nowMs + cfg.fireRateMs;
+
+      const weaponEl = document.getElementById('weaponView');
+      weaponEl.style.transform = 'translateX(-50%) translateY(-10px) scale(1.2)';
+      setTimeout(() => { weaponEl.style.transform = 'translateX(-50%)'; }, 80);
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      raycaster.far = cfg.meleeRange;
+      const dmg =
+        (cfg.damageMin + Math.random() * (cfg.damageMax - cfg.damageMin)) * state.playerDamageMult;
+
+      let closest = null;
+      let closestD = Infinity;
+      for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+        const dist = new THREE.Vector3(enemy.x - camera.position.x, 0, enemy.z - camera.position.z).length();
+        if (dist > cfg.meleeRange + 0.6) continue;
+        const hits = raycaster.intersectObject(enemy.mesh, true);
+        if (!hits.length) continue;
+        const d = hits[0].distance;
+        if (d > cfg.meleeRange) continue;
+        if (d < closestD) {
+          closestD = d;
+          closest = enemy;
+        }
+      }
+      if (closest) hitEnemy(closest, dmg);
+      return;
+    }
+
+    const ammo = getCurrentAmmo(state);
+    if (ammo <= 0) {
+      if (onDryFire) onDryFire();
+      return;
+    }
+    if (nowMs < state.nextShotAtMs) return;
+
+    if (onShoot) onShoot(state.weapon);
+    setCurrentAmmo(state, ammo - 1);
+    state.ammo = getCurrentAmmo(state);
+    state.nextShotAtMs = nowMs + cfg.fireRateMs;
     updateAmmoBar();
 
     const weaponEl = document.getElementById('weaponView');
     weaponEl.style.transform = 'translateX(-50%) translateY(-10px) scale(1.2)';
     setTimeout(() => { weaponEl.style.transform = 'translateX(-50%)'; }, 80);
 
-    const bullet = new THREE.Mesh(bulletGeom, bulletMat.clone());
-    bullet.position.copy(camera.position);
-    bullet.position.y -= 0.2;
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    scene.add(bullet);
-    bullets.push({ mesh: bullet, velocity: dir.clone().multiplyScalar(0.8), life: 60 });
-
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const dmg =
+      (cfg.damageMin + Math.random() * (cfg.damageMax - cfg.damageMin)) * state.playerDamageMult;
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
       const dist = new THREE.Vector3(enemy.x - camera.position.x, 0, enemy.z - camera.position.z).length();
       if (dist >= 20) continue;
       const hits = raycaster.intersectObject(enemy.mesh, true);
       if (!hits.length || hits[0].distance >= 18) continue;
-      hitEnemy(enemy, (34 + Math.random() * 20) * state.playerDamageMult);
+      hitEnemy(enemy, dmg);
       break;
     }
   }
@@ -48,8 +94,22 @@ export function createCombat(ctx) {
     if (enemy.health <= 0) killEnemy(enemy);
   }
 
+  function disposeObject3D(obj) {
+    obj.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => mat.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+  }
+
   function killEnemy(enemy) {
     enemy.alive = false;
+    disposeObject3D(enemy.mesh);
     scene.remove(enemy.mesh);
     state.kills++;
     setKillCount(state.kills);
@@ -57,7 +117,20 @@ export function createCombat(ctx) {
     maybeSpawnPickup(scene, enemy.x, enemy.z, state.pickupChance);
     if (enemies.every((e) => !e.alive)) {
       state.wave++;
-      state.ammo = state.maxAmmo;
+      state.ammoShotgun = 2;
+      state.ammoMagnum = 6;
+      state.reserveShotgun = Math.min(20, state.reserveShotgun + 10);
+      state.reserveMagnum = Math.min(60, state.reserveMagnum + 30);
+      if (state.weapon === 'shotgun') {
+        state.ammo = state.ammoShotgun;
+        state.maxAmmo = 2;
+      } else if (state.weapon === 'magnum') {
+        state.ammo = state.ammoMagnum;
+        state.maxAmmo = 6;
+      } else {
+        state.ammo = 0;
+        state.maxAmmo = 0;
+      }
       state.health = Math.min(100, state.health + 20);
       state.armor = Math.min(100, state.armor + 10);
       updateHUD();
@@ -68,34 +141,34 @@ export function createCombat(ctx) {
   }
 
   function reload() {
-    if (state.reloading || state.ammo === state.maxAmmo) return;
+    if (state.weapon === 'axe') return;
+    const cfg = getWeaponConfig(state.weapon);
+    const loaded = getCurrentAmmo(state);
+    const reserve = getReserveAmmo(state);
+    if (state.reloading || loaded >= cfg.maxAmmo) return;
+    if (reserve <= 0) {
+      showWaveMsg('SEM MUNICAO DE RESERVA!');
+      return;
+    }
     state.reloading = true;
+    if (onReloadStart) onReloadStart(state.weapon);
     showWaveMsg('A RECARREGAR...');
     setTimeout(() => {
-      state.ammo = state.maxAmmo;
+      const need = cfg.maxAmmo - loaded;
+      const take = Math.min(need, reserve);
+      setCurrentAmmo(state, loaded + take);
+      setReserveAmmoForWeapon(state, state.weapon, reserve - take);
+      state.ammo = getCurrentAmmo(state);
       state.reloading = false;
+      if (onReloadEnd) onReloadEnd();
       updateAmmoBar();
       showWaveMsg('RECARREGADO!');
-    }, 1500);
+    }, cfg.reloadMs);
   }
 
   return { shoot, reload };
 }
 
-export function updateBullets(scene, isWall, state) {
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const b = bullets[i];
-    b.mesh.position.add(b.velocity);
-    b.life--;
-    if (b.life <= 0 || isWall(b.mesh.position.x, b.mesh.position.z)) {
-      scene.remove(b.mesh);
-      bullets.splice(i, 1);
-    }
-  }
-  if (state.shootCooldown > 0) state.shootCooldown--;
-}
+export function updateBullets(_isWall) {}
 
-export function clearBullets(scene) {
-  for (const b of bullets) scene.remove(b.mesh);
-  bullets.length = 0;
-}
+export function clearBullets() {}
