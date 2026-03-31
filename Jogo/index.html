@@ -90,6 +90,19 @@
         <button class="main-btn" onclick="resumeGame()">[ RESUMIR ]</button>
         <button class="main-btn" onclick="backToMainMenu()">[ MENU INICIAL ]</button>
       </div>
+      <div class="pause-volume">
+        <div class="vol-title">VOLUME</div>
+        <div class="vol-row">
+          <span class="vol-label">MUSICA</span>
+          <input type="range" id="musicVolSlider" class="vol-slider" min="0" max="1" step="0.01">
+          <span class="vol-val" id="musicVolVal">45%</span>
+        </div>
+        <div class="vol-row">
+          <span class="vol-label">SFX</span>
+          <input type="range" id="sfxVolSlider" class="vol-slider" min="0" max="1" step="0.01">
+          <span class="vol-val" id="sfxVolVal">100%</span>
+        </div>
+      </div>
     </div>
   </div>
 

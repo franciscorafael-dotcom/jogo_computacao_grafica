@@ -19,12 +19,13 @@ export function createAudioSystem() {
   }
   let trackIndex = 0;
 
-  const MUSIC_VOL = 0.45;
+  const BASE_MUSIC_VOL = 0.45;
+  let musicVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem('doom3jsMusicVol') || '0.45')));
   let musicMuted = localStorage.getItem('doom3jsMusicMuted') === '1';
 
   const music = new Audio();
   music.loop = false;
-  music.volume = musicMuted ? 0 : MUSIC_VOL;
+  music.volume = musicMuted ? 0 : musicVolume;
   music.preload = 'auto';
   music.setAttribute('playsinline', '');
 
@@ -45,15 +46,25 @@ export function createAudioSystem() {
     a.setAttribute?.('playsinline', '');
   });
 
-  sfx.shotgunShot.volume = 0.55;
-  sfx.shotgunReload.volume = 0.5;
-  sfx.magnumShot.volume = 0.55;
-  sfx.magnumReload.volume = 0.5;
-  sfx.dryFire.volume = 0.45;
-  sfx.hit.volume = 0.55;
-  sfx.step1.volume = 0.35;
-  sfx.step2.volume = 0.35;
-  sfx.axeSwing.volume = 0.55;
+  const sfxBaseVols = {
+    shotgunShot: 0.55,
+    shotgunReload: 0.5,
+    magnumShot: 0.55,
+    magnumReload: 0.5,
+    dryFire: 0.45,
+    hit: 0.55,
+    step1: 0.35,
+    step2: 0.35,
+    axeSwing: 0.55
+  };
+  let sfxVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem('doom3jsSfxVol') || '1')));
+
+  function applySfxVolume() {
+    Object.entries(sfxBaseVols).forEach(([key, base]) => {
+      sfx[key].volume = base * sfxVolume;
+    });
+  }
+  applySfxVolume();
 
   let stepTimer = 0;
   let stepToggle = false;
@@ -68,9 +79,9 @@ export function createAudioSystem() {
   let allMusicTracksFailed = false;
 
   function applyMusicMute() {
-    music.volume = musicMuted ? 0 : MUSIC_VOL;
+    music.volume = musicMuted ? 0 : musicVolume;
     if (fallbackNodes && fallbackNodes.master) {
-      fallbackNodes.master.gain.value = musicMuted ? 0 : 0.08;
+      fallbackNodes.master.gain.value = musicMuted ? 0 : 0.08 * (musicVolume / BASE_MUSIC_VOL);
     }
   }
 
@@ -79,7 +90,7 @@ export function createAudioSystem() {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const master = audioCtx.createGain();
-      master.gain.value = musicMuted ? 0 : 0.08;
+      master.gain.value = musicMuted ? 0 : 0.08 * (musicVolume / BASE_MUSIC_VOL);
       master.connect(audioCtx.destination);
 
       const o1 = audioCtx.createOscillator();
@@ -220,6 +231,26 @@ export function createAudioSystem() {
     return musicMuted;
   }
 
+  function setMusicVolume(v) {
+    musicVolume = Math.min(1, Math.max(0, v));
+    localStorage.setItem('doom3jsMusicVol', musicVolume.toFixed(2));
+    applyMusicMute();
+  }
+
+  function getMusicVolume() {
+    return musicVolume;
+  }
+
+  function setSfxVolume(v) {
+    sfxVolume = Math.min(1, Math.max(0, v));
+    localStorage.setItem('doom3jsSfxVol', sfxVolume.toFixed(2));
+    applySfxVolume();
+  }
+
+  function getSfxVolume() {
+    return sfxVolume;
+  }
+
   function setPaused(paused) {
     pausedByGame = paused;
     if (paused) {
@@ -295,6 +326,10 @@ export function createAudioSystem() {
     setPaused,
     setMusicMuted,
     getMusicMuted,
+    setMusicVolume,
+    getMusicVolume,
+    setSfxVolume,
+    getSfxVolume,
     updateSteps
   };
 }

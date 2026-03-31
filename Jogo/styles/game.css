@@ -214,6 +214,49 @@ body {
   gap: 16px;
 }
 
+.pause-volume {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 2px solid #8c3a00;
+  background: rgba(36, 12, 0, 0.8);
+  padding: 14px 24px;
+  min-width: 380px;
+}
+.vol-title {
+  font-size: 26px;
+  color: #ff6d00;
+  letter-spacing: 4px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  margin-bottom: 4px;
+}
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.vol-label {
+  font-size: 22px;
+  color: #cc8866;
+  letter-spacing: 2px;
+  min-width: 70px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.vol-slider {
+  flex: 1;
+  accent-color: #ff5a00;
+  cursor: pointer;
+  height: 6px;
+}
+.vol-val {
+  font-size: 20px;
+  color: #ffb347;
+  min-width: 46px;
+  text-align: right;
+  font-family: 'Share Tech Mono', monospace;
+}
+
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes flicker { 0%, 95%, 100% { opacity: 1; } 96% { opacity: 0.4; } 98% { opacity: 0.8; } }
 @keyframes fadeOut { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }

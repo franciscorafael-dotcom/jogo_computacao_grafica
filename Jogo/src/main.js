@@ -59,6 +59,23 @@ const musicMuteEl = document.getElementById('musicMute');
 musicMuteEl.checked = audio.getMusicMuted();
 musicMuteEl.addEventListener('change', () => audio.setMusicMuted(musicMuteEl.checked));
 audio.initAudioOnFirstUserGesture();
+
+const musicVolSlider = document.getElementById('musicVolSlider');
+const sfxVolSlider = document.getElementById('sfxVolSlider');
+const musicVolVal = document.getElementById('musicVolVal');
+const sfxVolVal = document.getElementById('sfxVolVal');
+musicVolSlider.value = audio.getMusicVolume();
+musicVolVal.textContent = Math.round(audio.getMusicVolume() * 100) + '%';
+sfxVolSlider.value = audio.getSfxVolume();
+sfxVolVal.textContent = Math.round(audio.getSfxVolume() * 100) + '%';
+musicVolSlider.addEventListener('input', () => {
+  audio.setMusicVolume(parseFloat(musicVolSlider.value));
+  musicVolVal.textContent = Math.round(parseFloat(musicVolSlider.value) * 100) + '%';
+});
+sfxVolSlider.addEventListener('input', () => {
+  audio.setSfxVolume(parseFloat(sfxVolSlider.value));
+  sfxVolVal.textContent = Math.round(parseFloat(sfxVolSlider.value) * 100) + '%';
+});
 preloadAmmoPickupModel();
 
 const PLAYER_RADIUS = 0.35;
