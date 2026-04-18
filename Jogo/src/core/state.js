@@ -13,6 +13,8 @@ export const G = {
   weaponSwitching: false,
   kills: 0,
   wave: 1,
+  /** Nível de mapa (1 = implementado; 2+ reservados). */
+  currentLevel: 1,
   running: false,
   paused: false,
   cameraMode: 'perspective',
@@ -79,6 +81,7 @@ export function resetState() {
   G.maxAmmo = 2;
   G.kills = 0;
   G.wave = 1;
+  G.currentLevel = 1;
   G.reloading = false;
   G.shootCooldown = 0;
   G.nextShotAtMs = 0;

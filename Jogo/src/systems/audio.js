@@ -19,13 +19,22 @@ export function createAudioSystem() {
   }
   let trackIndex = 0;
 
-  const BASE_MUSIC_VOL = 0.45;
-  let musicVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem('doom3jsMusicVol') || '0.45')));
-  let musicMuted = localStorage.getItem('doom3jsMusicMuted') === '1';
+  const MUSIC_VOL = 0.45;
+  let musicVolMul = parseFloat(localStorage.getItem('doom3jsMusicVol') ?? '', 10);
+  if (Number.isNaN(musicVolMul)) {
+    musicVolMul = localStorage.getItem('doom3jsMusicMuted') === '1' ? 0 : 1;
+  }
+  musicVolMul = Math.max(0, Math.min(1, musicVolMul));
+
+  let sfxVolMul = parseFloat(localStorage.getItem('doom3jsSfxVol') ?? '', 10);
+  if (Number.isNaN(sfxVolMul)) sfxVolMul = 1;
+  sfxVolMul = Math.max(0, Math.min(1, sfxVolMul));
+
+  let musicMuted = musicVolMul <= 0;
 
   const music = new Audio();
   music.loop = false;
-  music.volume = musicMuted ? 0 : musicVolume;
+  music.volume = musicMuted ? 0 : MUSIC_VOL * musicVolMul;
   music.preload = 'auto';
   music.setAttribute('playsinline', '');
 
@@ -46,25 +55,15 @@ export function createAudioSystem() {
     a.setAttribute?.('playsinline', '');
   });
 
-  const sfxBaseVols = {
-    shotgunShot: 0.55,
-    shotgunReload: 0.5,
-    magnumShot: 0.55,
-    magnumReload: 0.5,
-    dryFire: 0.45,
-    hit: 0.55,
-    step1: 0.35,
-    step2: 0.35,
-    axeSwing: 0.55
-  };
-  let sfxVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem('doom3jsSfxVol') || '1')));
-
-  function applySfxVolume() {
-    Object.entries(sfxBaseVols).forEach(([key, base]) => {
-      sfx[key].volume = base * sfxVolume;
-    });
-  }
-  applySfxVolume();
+  sfx.shotgunShot.volume = 0.55;
+  sfx.shotgunReload.volume = 0.5;
+  sfx.magnumShot.volume = 0.55;
+  sfx.magnumReload.volume = 0.5;
+  sfx.dryFire.volume = 0.45;
+  sfx.hit.volume = 0.55;
+  sfx.step1.volume = 0.35;
+  sfx.step2.volume = 0.35;
+  sfx.axeSwing.volume = 0.55;
 
   let stepTimer = 0;
   let stepToggle = false;
@@ -79,10 +78,36 @@ export function createAudioSystem() {
   let allMusicTracksFailed = false;
 
   function applyMusicMute() {
-    music.volume = musicMuted ? 0 : musicVolume;
+    music.volume = musicMuted ? 0 : MUSIC_VOL * musicVolMul;
     if (fallbackNodes && fallbackNodes.master) {
-      fallbackNodes.master.gain.value = musicMuted ? 0 : 0.08 * (musicVolume / BASE_MUSIC_VOL);
+      fallbackNodes.master.gain.value = musicMuted ? 0 : 0.08 * musicVolMul;
     }
+  }
+
+  function setMusicVolume01(v) {
+    musicVolMul = Math.max(0, Math.min(1, Number(v)));
+    localStorage.setItem('doom3jsMusicVol', String(musicVolMul));
+    musicMuted = musicVolMul <= 0;
+    if (musicVolMul > 0) localStorage.removeItem('doom3jsMusicMuted');
+    applyMusicMute();
+    if (musicVolMul > 0 && musicPlayStarted && !pausedByGame && !allMusicTracksFailed) {
+      const p = music.play();
+      if (p && typeof p.then === 'function') p.catch(() => {});
+      if (musicFallbackActive && audioCtx) audioCtx.resume().catch(() => {});
+    }
+  }
+
+  function getMusicVolume01() {
+    return musicVolMul;
+  }
+
+  function setSfxVolume01(v) {
+    sfxVolMul = Math.max(0, Math.min(1, Number(v)));
+    localStorage.setItem('doom3jsSfxVol', String(sfxVolMul));
+  }
+
+  function getSfxVolume01() {
+    return sfxVolMul;
   }
 
   function playFallbackAmbient() {
@@ -90,7 +115,7 @@ export function createAudioSystem() {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const master = audioCtx.createGain();
-      master.gain.value = musicMuted ? 0 : 0.08 * (musicVolume / BASE_MUSIC_VOL);
+      master.gain.value = musicMuted ? 0 : 0.08 * musicVolMul;
       master.connect(audioCtx.destination);
 
       const o1 = audioCtx.createOscillator();
@@ -127,6 +152,11 @@ export function createAudioSystem() {
 
   function playSfx(a) {
     if (!a) return;
+    if (a.dataset.baseVolume === undefined) {
+      a.dataset.baseVolume = String(a.volume);
+    }
+    const base = parseFloat(a.dataset.baseVolume, 10);
+    a.volume = (Number.isNaN(base) ? a.volume : base) * sfxVolMul;
     a.currentTime = 0;
     a.play().catch(() => {});
   }
@@ -202,7 +232,11 @@ export function createAudioSystem() {
 
   function setMusicMuted(m) {
     musicMuted = !!m;
-    localStorage.setItem('doom3jsMusicMuted', musicMuted ? '1' : '0');
+    if (musicMuted) {
+      localStorage.setItem('doom3jsMusicMuted', '1');
+    } else {
+      localStorage.removeItem('doom3jsMusicMuted');
+    }
     applyMusicMute();
     if (musicMuted) {
       music.pause();
@@ -229,26 +263,6 @@ export function createAudioSystem() {
 
   function getMusicMuted() {
     return musicMuted;
-  }
-
-  function setMusicVolume(v) {
-    musicVolume = Math.min(1, Math.max(0, v));
-    localStorage.setItem('doom3jsMusicVol', musicVolume.toFixed(2));
-    applyMusicMute();
-  }
-
-  function getMusicVolume() {
-    return musicVolume;
-  }
-
-  function setSfxVolume(v) {
-    sfxVolume = Math.min(1, Math.max(0, v));
-    localStorage.setItem('doom3jsSfxVol', sfxVolume.toFixed(2));
-    applySfxVolume();
-  }
-
-  function getSfxVolume() {
-    return sfxVolume;
   }
 
   function setPaused(paused) {
@@ -299,9 +313,14 @@ export function createAudioSystem() {
       document.removeEventListener('click', run, true);
       document.removeEventListener('keydown', onKey, true);
       setTimeout(() => {
-        musicMuted = localStorage.getItem('doom3jsMusicMuted') === '1';
+        musicVolMul = parseFloat(localStorage.getItem('doom3jsMusicVol') ?? '', 10);
+        if (Number.isNaN(musicVolMul)) {
+          musicVolMul = localStorage.getItem('doom3jsMusicMuted') === '1' ? 0 : 1;
+        }
+        musicVolMul = Math.max(0, Math.min(1, musicVolMul));
+        musicMuted = musicVolMul <= 0;
         applyMusicMute();
-        if (!musicMuted) startMusic();
+        if (musicVolMul > 0) startMusic();
       }, 0);
     };
     function onKey(e) {
@@ -326,10 +345,10 @@ export function createAudioSystem() {
     setPaused,
     setMusicMuted,
     getMusicMuted,
-    setMusicVolume,
-    getMusicVolume,
-    setSfxVolume,
-    getSfxVolume,
+    setMusicVolume01,
+    getMusicVolume01,
+    setSfxVolume01,
+    getSfxVolume01,
     updateSteps
   };
 }

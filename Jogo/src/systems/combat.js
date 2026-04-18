@@ -90,7 +90,13 @@ export function createCombat(ctx) {
   function hitEnemy(enemy, dmg) {
     enemy.health -= dmg;
     enemy.hitFlash = 8;
-    enemy.mesh.children.forEach((c) => c.material?.emissive?.setHex(0xff0000));
+    enemy.mesh.traverse((c) => {
+      if (!c.isMesh) return;
+      const mats = Array.isArray(c.material) ? c.material : [c.material];
+      for (const m of mats) {
+        if (m && m.emissive) m.emissive.setHex(0xff0000);
+      }
+    });
     if (enemy.health <= 0) killEnemy(enemy);
   }
 

@@ -4,6 +4,7 @@ import { G, player, MAP, CELL, resetState, applyDifficulty } from './core/state.
 import { createWorld, isWall } from './core/world.js';
 import { loadWorldProps, circleIntersectsPropCollider } from './core/worldProps.js';
 import { createHUD } from './ui/hud.js';
+import { createLoreViewer } from './ui/lore.js';
 import { createMinimap } from './ui/minimap.js';
 import { enemies, spawnWave, updateEnemies, clearEnemies } from './systems/enemies.js';
 import { createCombat, updateBullets, clearBullets } from './systems/combat.js';
@@ -55,28 +56,106 @@ const minimap = createMinimap(MAP, CELL, enemies, player);
 const weaponViewEl = document.getElementById('weaponView');
 const pauseScreenEl = document.getElementById('pauseScreen');
 const audio = createAudioSystem();
-const musicMuteEl = document.getElementById('musicMute');
-musicMuteEl.checked = audio.getMusicMuted();
-musicMuteEl.addEventListener('change', () => audio.setMusicMuted(musicMuteEl.checked));
 audio.initAudioOnFirstUserGesture();
-
-const musicVolSlider = document.getElementById('musicVolSlider');
-const sfxVolSlider = document.getElementById('sfxVolSlider');
-const musicVolVal = document.getElementById('musicVolVal');
-const sfxVolVal = document.getElementById('sfxVolVal');
-musicVolSlider.value = audio.getMusicVolume();
-musicVolVal.textContent = Math.round(audio.getMusicVolume() * 100) + '%';
-sfxVolSlider.value = audio.getSfxVolume();
-sfxVolVal.textContent = Math.round(audio.getSfxVolume() * 100) + '%';
-musicVolSlider.addEventListener('input', () => {
-  audio.setMusicVolume(parseFloat(musicVolSlider.value));
-  musicVolVal.textContent = Math.round(parseFloat(musicVolSlider.value) * 100) + '%';
-});
-sfxVolSlider.addEventListener('input', () => {
-  audio.setSfxVolume(parseFloat(sfxVolSlider.value));
-  sfxVolVal.textContent = Math.round(parseFloat(sfxVolSlider.value) * 100) + '%';
-});
 preloadAmmoPickupModel();
+
+const menuPanels = {
+  main: document.getElementById('menuPanelMain'),
+  levels: document.getElementById('menuPanelLevels'),
+  settings: document.getElementById('menuPanelSettings'),
+  difficulty: document.getElementById('menuPanelDifficulty'),
+  lore: document.getElementById('menuPanelLore')
+};
+
+let pendingLevelId = 1;
+
+const loreViewer = createLoreViewer({
+  canvas: document.getElementById('loreModelCanvas'),
+  cardTitleEl: document.getElementById('loreCardTitle'),
+  cardTextEl: document.getElementById('loreCardText'),
+  dotsEl: document.getElementById('loreDots'),
+  prevBtn: document.getElementById('lorePrevBtn'),
+  nextBtn: document.getElementById('loreNextBtn')
+});
+
+function showMenuView(viewId) {
+  Object.entries(menuPanels).forEach(([key, el]) => {
+    if (!el) return;
+    const on = key === viewId;
+    el.classList.toggle('menu-panel--hidden', !on);
+    if (on) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', '');
+  });
+  if (viewId === 'lore') loreViewer.show();
+  else loreViewer.hide();
+}
+
+function syncAudioSlidersFromAudio() {
+  const mv = Math.round(audio.getMusicVolume01() * 100);
+  const sv = Math.round(audio.getSfxVolume01() * 100);
+  ['musicVolSlider', 'pauseMusicVolSlider'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(mv);
+  });
+  ['sfxVolSlider', 'pauseSfxVolSlider'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(sv);
+  });
+}
+
+function bindVolumeSlider(id, setFn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    setFn(Number(el.value) / 100);
+    syncAudioSlidersFromAudio();
+  });
+}
+
+function setupMainMenu() {
+  bindVolumeSlider('musicVolSlider', (v) => audio.setMusicVolume01(v));
+  bindVolumeSlider('sfxVolSlider', (v) => audio.setSfxVolume01(v));
+  bindVolumeSlider('pauseMusicVolSlider', (v) => audio.setMusicVolume01(v));
+  bindVolumeSlider('pauseSfxVolSlider', (v) => audio.setSfxVolume01(v));
+  syncAudioSlidersFromAudio();
+
+  document.querySelectorAll('[data-menu-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-menu-action');
+      if (action === 'play') showMenuView('levels');
+      else if (action === 'settings') showMenuView('settings');
+      else if (action === 'lore') showMenuView('lore');
+    });
+  });
+
+  document.querySelectorAll('[data-menu-back]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const back = btn.getAttribute('data-menu-back');
+      if (back) showMenuView(back);
+    });
+  });
+
+  document.querySelectorAll('.menu-level-btn:not(.is-locked)').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pendingLevelId = Number(btn.getAttribute('data-level'), 10) || 1;
+      showMenuView('difficulty');
+    });
+  });
+
+  document.querySelectorAll('#difficultyMenu [data-difficulty]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-difficulty');
+      window.startGame(key);
+    });
+  });
+
+  const pauseResume = document.getElementById('pauseBtnResume');
+  const pauseMenu = document.getElementById('pauseBtnMenu');
+  if (pauseResume) pauseResume.addEventListener('click', () => window.resumeGame());
+  if (pauseMenu) pauseMenu.addEventListener('click', () => window.backToMainMenu());
+}
+
+setupMainMenu();
 
 const PLAYER_RADIUS = 0.35;
 function isPlayerBlocked(wx, wz) {
@@ -536,6 +615,7 @@ function die() {
   audio.setPaused(true);
   document.exitPointerLock();
   pauseScreenEl.style.display = 'none';
+  pauseScreenEl.setAttribute('aria-hidden', 'true');
   document.getElementById('deathScreen').style.display = 'flex';
   document.getElementById('finalScore').textContent = `MORTES: ${G.kills} · ONDA: ${G.wave}`;
 }
@@ -554,7 +634,7 @@ function loop() {
   updatePlayer({
     state: G, player, camera: perspCam, pointLight, isWall: isPlayerBlocked, updateHUD: hud.updateHUD
   });
-  updateEnemies(t, { player, isWall, takeDamage, state: G });
+  updateEnemies(t, { player, isWall, takeDamage, state: G }, 0.016);
   updateBullets(isWall);
   updatePickups(scene, player, G, hud.showWaveMsg, hud.updateHUD, hud.updateAmmoBar, t);
   updateLights(t);
@@ -576,8 +656,11 @@ function togglePause() {
     clearInputState();
     audio.setPaused(true);
     pauseScreenEl.style.display = 'flex';
+    pauseScreenEl.setAttribute('aria-hidden', 'false');
+    syncAudioSlidersFromAudio();
   } else {
     pauseScreenEl.style.display = 'none';
+    pauseScreenEl.setAttribute('aria-hidden', 'true');
     audio.setPaused(false);
     canvas.requestPointerLock();
   }
@@ -587,6 +670,7 @@ function resumeGame() {
   if (!G.running) return;
   G.paused = false;
   pauseScreenEl.style.display = 'none';
+  pauseScreenEl.setAttribute('aria-hidden', 'true');
   audio.setPaused(false);
   canvas.requestPointerLock();
 }
@@ -599,21 +683,30 @@ function backToMainMenu() {
   clearPickups(scene);
   document.exitPointerLock();
   pauseScreenEl.style.display = 'none';
+  pauseScreenEl.setAttribute('aria-hidden', 'true');
   document.getElementById('deathScreen').style.display = 'none';
   document.getElementById('overlay').style.display = 'flex';
+  pendingLevelId = 1;
+  showMenuView('main');
   audio.setPaused(true);
 }
 
-window.startGame = function startGame() {
-  const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked')?.value || 'medium';
+window.startGame = function startGame(difficultyKey) {
+  if (pendingLevelId !== 1) {
+    return;
+  }
+  const allowed = ['easy', 'medium', 'hard', 'nightmare'];
+  const selectedDifficulty = allowed.includes(difficultyKey) ? difficultyKey : 'medium';
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('deathScreen').style.display = 'none';
   pauseScreenEl.style.display = 'none';
+  pauseScreenEl.setAttribute('aria-hidden', 'true');
   clearEnemies(scene);
   clearBullets();
   clearPickups(scene);
   resetState();
   applyDifficulty(selectedDifficulty);
+  G.currentLevel = pendingLevelId;
   G.running = true;
   G.paused = false;
   weaponSwitch = null;
@@ -639,6 +732,7 @@ window.restartGame = function restartGame() {
   G.running = true;
   G.paused = false;
   pauseScreenEl.style.display = 'none';
+  pauseScreenEl.setAttribute('aria-hidden', 'true');
   weaponSwitch = null;
   G.weaponSwitching = false;
   shotgunRoot.position.y = 0;

@@ -1,31 +1,21 @@
-import * as THREE from 'three';
 import { CELL, MAP } from '../core/state.js';
-
-let enemySkinTexture = null;
-let enemyDarkTexture = null;
-
-// Carregar texturas para inimigos
-const texLoader = new THREE.TextureLoader();
-texLoader.load(
-  './assets/enemy_skin.png', // Assumindo que existe
-  (tex) => {
-    enemySkinTexture = tex;
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  },
-  undefined,
-  () => {}
-);
-texLoader.load(
-  './assets/enemy_dark.png', // Assumindo
-  (tex) => {
-    enemyDarkTexture = tex;
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  },
-  undefined,
-  () => {}
-);
+import { createCyberdemonMob } from '../mobs/cyberdemonMob.js';
+import { createCacodemonMob } from '../mobs/cacodemonMob.js';
 
 export const enemies = [];
+
+/**
+ * Ajustes visuais dos mobs (podes alterar aqui):
+ * - MOB_GROUND_LIFT: sobe o pivô em relação ao chão (Y). Aumenta se os pés enterrarem.
+ * - MOB_YAW_OFFSET: rotação extra em radianos no eixo Y se o modelo ficar de costas (ex.: Math.PI).
+ * - CYBER_SCALE / CACO_SCALE / BOSS_CYBER_SCALE: tamanho dos modelos.
+ */
+export const MOB_GROUND_LIFT = 0.72;
+export const MOB_YAW_OFFSET = 0;
+
+const CYBER_SCALE = 0.34;
+const CACO_SCALE = 0.3;
+const BOSS_CYBER_SCALE = CYBER_SCALE * 1.58;
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -34,6 +24,31 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+function stashFlashOriginals(root) {
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    child.userData.flashOrig = mats.map((m) =>
+      m && m.emissive
+        ? { hex: m.emissive.getHex(), intensity: m.emissiveIntensity }
+        : null
+    );
+  });
+}
+
+function restoreFlashMaterials(root) {
+  root.traverse((child) => {
+    if (!child.isMesh || !child.userData.flashOrig) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    child.userData.flashOrig.forEach((o, i) => {
+      const m = mats[i];
+      if (!m || !m.emissive || !o) return;
+      m.emissive.setHex(o.hex);
+      if (o.intensity !== undefined) m.emissiveIntensity = o.intensity;
+    });
+  });
 }
 
 /** Células de chão (sem parede), longe do spawn do jogador (~célula 5,5). */
@@ -49,87 +64,34 @@ function collectFloorSpawnTiles() {
   return cells;
 }
 
-function limbMesh(geom, mat, x, y, z, sx, sy, sz, rx = 0, rz = 0) {
-  const m = new THREE.Mesh(geom, mat);
-  m.position.set(x, y, z);
-  m.scale.set(sx, sy, sz);
-  m.rotation.x = rx;
-  m.rotation.z = rz;
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
+function makeCyberEnemy(isBoss) {
+  const mob = createCyberdemonMob();
+  mob.applyScale(isBoss ? BOSS_CYBER_SCALE : CYBER_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'cyber',
+    walkPhase: Math.random() * Math.PI * 2,
+    applyWalkPhase: mob.applyWalkPhase,
+    applyFloatAnimation: null
+  };
 }
 
-function createEnemyMesh(isBoss = false) {
-  const group = new THREE.Group();
-  const s = isBoss ? 1.65 : 1;
-
-  const skin = enemySkinTexture ? new THREE.MeshLambertMaterial({ map: enemySkinTexture }) : new THREE.MeshLambertMaterial({ color: isBoss ? 0x4a1520 : 0x7a2028 });
-  const dark = enemyDarkTexture ? new THREE.MeshLambertMaterial({ map: enemyDarkTexture }) : new THREE.MeshLambertMaterial({ color: isBoss ? 0x2a0a12 : 0x4a1818 });
-  const joint = new THREE.MeshLambertMaterial({ color: isBoss ? 0x1a0808 : 0x2a1010 });
-
-  const torso = limbMesh(
-    new THREE.BoxGeometry(0.55, 0.75, 0.28),
-    skin,
-    0, 1.05 * s, 0,
-    s, s, s
-  );
-  group.add(torso);
-
-  const pelvis = limbMesh(
-    new THREE.BoxGeometry(0.45, 0.25, 0.24),
-    dark,
-    0, 0.58 * s, 0,
-    s, s, s
-  );
-  group.add(pelvis);
-
-  const head = limbMesh(
-    new THREE.SphereGeometry(0.28, 10, 10),
-    skin,
-    0, 1.58 * s, 0.06 * s,
-    s, s, s
-  );
-  group.add(head);
-
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-  const eyeG = new THREE.SphereGeometry(0.06 * s, 6, 6);
-  const eyeL = limbMesh(eyeG, eyeMat, -0.1 * s, 1.62 * s, 0.32 * s, 1, 1, 1);
-  const eyeR = limbMesh(eyeG, eyeMat, 0.1 * s, 1.62 * s, 0.32 * s, 1, 1, 1);
-  group.add(eyeL);
-  group.add(eyeR);
-
-  const upperArmG = new THREE.CylinderGeometry(0.09 * s, 0.1 * s, 0.42 * s, 8);
-  const foreArmG = new THREE.CylinderGeometry(0.08 * s, 0.08 * s, 0.38 * s, 8);
-  const thighG = new THREE.CylinderGeometry(0.12 * s, 0.11 * s, 0.45 * s, 8);
-  const shinG = new THREE.CylinderGeometry(0.1 * s, 0.09 * s, 0.42 * s, 8);
-
-  const armLX = -0.38 * s;
-  const armRX = 0.38 * s;
-  const shoulderY = 1.28 * s;
-  group.add(limbMesh(upperArmG, skin, armLX, shoulderY, 0, 1, 1, 1, 0.15, 0));
-  group.add(limbMesh(upperArmG, skin, armRX, shoulderY, 0, 1, 1, 1, 0.15, 0));
-  group.add(limbMesh(foreArmG, joint, armLX, 0.92 * s, 0.05 * s, 1, 1, 1, 0.1, 0));
-  group.add(limbMesh(foreArmG, joint, armRX, 0.92 * s, 0.05 * s, 1, 1, 1, 0.1, 0));
-
-  const hipY = 0.42 * s;
-  const legX = 0.14 * s;
-  group.add(limbMesh(thighG, dark, -legX, hipY, 0, 1, 1, 1, -0.08, 0));
-  group.add(limbMesh(thighG, dark, legX, hipY, 0, 1, 1, 1, -0.08, 0));
-  group.add(limbMesh(shinG, joint, -legX, 0.08 * s, 0.02 * s, 1, 1, 1, 0.05, 0));
-  group.add(limbMesh(shinG, joint, legX, 0.08 * s, 0.02 * s, 1, 1, 1, 0.05, 0));
-
-  const footG = new THREE.BoxGeometry(0.16 * s, 0.1 * s, 0.28 * s);
-  group.add(limbMesh(footG, dark, -legX, -0.12 * s, 0.1 * s, 1, 1, 1));
-  group.add(limbMesh(footG, dark, legX, -0.12 * s, 0.1 * s, 1, 1, 1));
-
-  return group;
+function makeCacoEnemy() {
+  const mob = createCacodemonMob();
+  mob.applyScale(CACO_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'caco',
+    walkPhase: 0,
+    applyWalkPhase: null,
+    applyFloatAnimation: mob.applyFloatAnimation
+  };
 }
 
 export function spawnWave(scene, wave, showMessage, state) {
-  // Limpar inimigos e pickups restantes da onda anterior para manter leve
   clearEnemies(scene);
-  // Nota: pickups são limpos em outro lugar, mas podemos garantir aqui se necessário
 
   const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
   const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
@@ -158,26 +120,6 @@ export function spawnWave(scene, wave, showMessage, state) {
     return null;
   }
 
-  const nSpawn = Math.min(count, pool.length);
-  for (let i = 0; i < nSpawn; i++) {
-    const tile = takeTile();
-    if (!tile) break;
-    const [col, row] = tile;
-    const x = col * CELL + CELL / 2;
-    const z = row * CELL + CELL / 2;
-    const mesh = createEnemyMesh(false);
-    mesh.position.set(x, 0, z);
-    scene.add(mesh);
-    enemies.push({
-      mesh, x, z, alive: true, isBoss: false,
-      health: (100 + wave * 10) * state.enemyHealthMult,
-      speed: (0.03 + Math.random() * 0.02) * state.enemySpeedMult,
-      attackCooldown: 0,
-      phase: Math.random() * Math.PI * 2,
-      hitFlash: 0
-    });
-  }
-
   if (shouldSpawnBoss) {
     let bossTile = takeTile([10, 10]);
     if (!bossTile) {
@@ -193,25 +135,71 @@ export function spawnWave(scene, wave, showMessage, state) {
       const [col, row] = bossTile;
       const x = col * CELL + CELL / 2;
       const z = row * CELL + CELL / 2;
-      const mesh = createEnemyMesh(true);
-      mesh.position.set(x, 0, z);
-      scene.add(mesh);
+      const built = makeCyberEnemy(true);
+      built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+      scene.add(built.mesh);
       enemies.push({
-        mesh, x, z, alive: true, isBoss: true,
+        mesh: built.mesh,
+        x,
+        z,
+        alive: true,
+        isBoss: true,
+        kind: built.kind,
         health: (420 + wave * 40) * state.enemyHealthMult,
         speed: 0.02 * state.enemySpeedMult,
         attackCooldown: 0,
         phase: Math.random() * Math.PI * 2,
-        hitFlash: 0
+        hitFlash: 0,
+        walkPhase: built.walkPhase,
+        applyWalkPhase: built.applyWalkPhase,
+        applyFloatAnimation: built.applyFloatAnimation
       });
       showMessage(`ONDA ${wave} · BOSS`);
       return;
     }
   }
+
+  const nSpawn = Math.min(count, pool.length);
+  let nCyber = Math.floor(nSpawn / 2);
+  let nCaco = nSpawn - nCyber;
+  if (nSpawn % 2 === 1 && Math.random() < 0.5) {
+    nCyber++;
+    nCaco--;
+  }
+  const kinds = shuffle([...Array(nCyber).fill('cyber'), ...Array(nCaco).fill('caco')]);
+
+  for (let i = 0; i < nSpawn; i++) {
+    const tile = takeTile();
+    if (!tile) break;
+    const [col, row] = tile;
+    const x = col * CELL + CELL / 2;
+    const z = row * CELL + CELL / 2;
+    const kind = kinds[i];
+    const built = kind === 'cyber' ? makeCyberEnemy(false) : makeCacoEnemy();
+    built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+    scene.add(built.mesh);
+    enemies.push({
+      mesh: built.mesh,
+      x,
+      z,
+      alive: true,
+      isBoss: false,
+      kind: built.kind,
+      health: (100 + wave * 10) * state.enemyHealthMult,
+      speed: (0.03 + Math.random() * 0.02) * state.enemySpeedMult,
+      attackCooldown: 0,
+      phase: Math.random() * Math.PI * 2,
+      hitFlash: 0,
+      walkPhase: built.walkPhase,
+      applyWalkPhase: built.applyWalkPhase,
+      applyFloatAnimation: built.applyFloatAnimation
+    });
+  }
+
   showMessage(`ONDA ${wave}`);
 }
 
-export function updateEnemies(t, ctx) {
+export function updateEnemies(_t, ctx, dt = 0.016) {
   const { player, isWall, takeDamage, state } = ctx;
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
@@ -224,8 +212,19 @@ export function updateEnemies(t, ctx) {
       if (!isWall(nx, enemy.z)) enemy.x = nx;
       if (!isWall(enemy.x, nz)) enemy.z = nz;
     }
-    enemy.mesh.position.set(enemy.x, Math.sin(t * 3 + enemy.phase) * 0.1, enemy.z);
-    enemy.mesh.lookAt(player.x, 0, player.z);
+
+    const moving = dist > 1.5;
+    if (enemy.kind === 'cyber' && enemy.applyWalkPhase) {
+      enemy.walkPhase += dt * (moving ? 1.85 : 0.6);
+      enemy.applyWalkPhase(enemy.walkPhase, moving);
+    } else if (enemy.kind === 'caco' && enemy.applyFloatAnimation) {
+      enemy.applyFloatAnimation(dt, moving);
+    }
+
+    enemy.mesh.position.set(enemy.x, MOB_GROUND_LIFT, enemy.z);
+    // Só rotação em Y: lookAt inclinava o modelo para o jogador e enterrava os pés no chão.
+    const yaw = Math.atan2(dx, dz) + MOB_YAW_OFFSET;
+    enemy.mesh.rotation.set(0, yaw, 0);
 
     if (dist < (enemy.isBoss ? 3.1 : 2.5)) {
       enemy.attackCooldown--;
@@ -236,7 +235,7 @@ export function updateEnemies(t, ctx) {
     }
     if (enemy.hitFlash > 0) {
       enemy.hitFlash--;
-      if (enemy.hitFlash === 0) enemy.mesh.children.forEach(c => c.material?.emissive?.setHex(0x000000));
+      if (enemy.hitFlash === 0) restoreFlashMaterials(enemy.mesh);
     }
   }
 }
