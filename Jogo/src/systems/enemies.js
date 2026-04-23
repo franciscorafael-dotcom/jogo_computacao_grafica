@@ -1,4 +1,4 @@
-import { CELL, MAP } from '../core/state.js';
+import { CELL, getCurrentMap } from '../core/state.js';
 import { createCyberdemonMob } from '../mobs/cyberdemonMob.js';
 import { createCacodemonMob } from '../mobs/cacodemonMob.js';
 
@@ -53,10 +53,11 @@ function restoreFlashMaterials(root) {
 
 /** Células de chão (sem parede), longe do spawn do jogador (~célula 5,5). */
 function collectFloorSpawnTiles() {
+  const map = getCurrentMap();
   const cells = [];
-  for (let row = 0; row < MAP.length; row++) {
-    for (let col = 0; col < MAP[row].length; col++) {
-      if (MAP[row][col] !== 0) continue;
+  for (let row = 0; row < map.length; row++) {
+    for (let col = 0; col < map[row].length; col++) {
+      if (map[row][col] !== 0) continue;
       if (col >= 4 && col <= 6 && row >= 4 && row <= 6) continue;
       cells.push([col, row]);
     }
@@ -92,6 +93,7 @@ function makeCacoEnemy() {
 
 export function spawnWave(scene, wave, showMessage, state) {
   clearEnemies(scene);
+  const map = getCurrentMap();
 
   const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
   const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
@@ -111,7 +113,7 @@ export function spawnWave(scene, wave, showMessage, state) {
     }
     const order = tryList.length ? shuffle(tryList).concat(shuffle(pool)) : pool;
     for (const [c, r] of order) {
-      if (MAP[r][c] !== 0) continue;
+      if (map[r][c] !== 0) continue;
       const k = key(c, r);
       if (used.has(k)) continue;
       used.add(k);
@@ -125,7 +127,7 @@ export function spawnWave(scene, wave, showMessage, state) {
     if (!bossTile) {
       for (const [c, r] of shuffle(floorTiles)) {
         const k = key(c, r);
-        if (used.has(k) || MAP[r][c] !== 0) continue;
+        if (used.has(k) || map[r][c] !== 0) continue;
         used.add(k);
         bossTile = [c, r];
         break;

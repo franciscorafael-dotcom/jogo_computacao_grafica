@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CELL, MAP } from './state.js';
+import { CELL, getCurrentMap } from './state.js';
 
 function makeWallTexture() {
   const size = 64;
@@ -41,7 +41,7 @@ function makeFloorTexture() {
   return tex;
 }
 
-export function createWorld(scene) {
+export function createWorld(scene, map = getCurrentMap()) {
   const wallTex = makeWallTexture();
   const wallMat = new THREE.MeshLambertMaterial({ map: wallTex });
   const texLoader = new THREE.TextureLoader();
@@ -61,9 +61,9 @@ export function createWorld(scene) {
   const ceilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
 
   const wallGeom = new THREE.BoxGeometry(CELL, CELL * 1.2, CELL);
-  for (let row = 0; row < MAP.length; row++) {
-    for (let col = 0; col < MAP[row].length; col++) {
-      if (MAP[row][col] !== 1) continue;
+  for (let row = 0; row < map.length; row++) {
+    for (let col = 0; col < map[row].length; col++) {
+      if (map[row][col] !== 1) continue;
       const wall = new THREE.Mesh(wallGeom, wallMat);
       wall.position.set(col * CELL + CELL / 2, CELL * 0.6, row * CELL + CELL / 2);
       wall.receiveShadow = true;
@@ -72,22 +72,23 @@ export function createWorld(scene) {
     }
   }
 
-  const floorGeom = new THREE.PlaneGeometry(MAP[0].length * CELL, MAP.length * CELL);
+  const floorGeom = new THREE.PlaneGeometry(map[0].length * CELL, map.length * CELL);
   const floor = new THREE.Mesh(floorGeom, floorMat);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(MAP[0].length * CELL / 2, 0, MAP.length * CELL / 2);
+  floor.position.set(map[0].length * CELL / 2, 0, map.length * CELL / 2);
   floor.receiveShadow = true;
   scene.add(floor);
 
   const ceil = new THREE.Mesh(floorGeom, ceilMat);
   ceil.rotation.x = Math.PI / 2;
-  ceil.position.set(MAP[0].length * CELL / 2, CELL * 1.2, MAP.length * CELL / 2);
+  ceil.position.set(map[0].length * CELL / 2, CELL * 1.2, map.length * CELL / 2);
   scene.add(ceil);
 }
 
 export function isWall(wx, wz) {
+  const map = getCurrentMap();
   const col = Math.floor(wx / CELL);
   const row = Math.floor(wz / CELL);
-  if (row < 0 || row >= MAP.length || col < 0 || col >= MAP[0].length) return true;
-  return MAP[row][col] === 1;
+  if (row < 0 || row >= map.length || col < 0 || col >= map[0].length) return true;
+  return map[row][col] === 1;
 }

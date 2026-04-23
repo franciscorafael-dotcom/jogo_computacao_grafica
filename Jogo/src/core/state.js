@@ -36,8 +36,8 @@ export const G = {
 };
 
 export const player = {
-  x: 5 * CELL,
-  z: 5 * CELL,
+  x: 5 * CELL + CELL / 2,
+  z: 5 * CELL + CELL / 2,
   yaw: 0,
   pitch: 0,
   height: 1.6,
@@ -45,28 +45,21 @@ export const player = {
   jumpOffset: 0
 };
 
-export const MAP = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,1,1,0,0,0,0,1,0,0,0,1,1,0,0,0,0,1],
-  [1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-  [1,0,0,1,1,0,0,0,0,1,0,0,0,1,1,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-];
+import { MAP_LEVEL_1 } from './level1.js';
+import { MAP_LEVEL_2 } from './level2.js';
+import { MAP_LEVEL_3 } from './level3.js';
+
+export const MAP = MAP_LEVEL_1;
+
+export function getMapForLevel(level) {
+  if (level === 2) return MAP_LEVEL_2;
+  if (level === 3) return MAP_LEVEL_3;
+  return MAP_LEVEL_1;
+}
+
+export function getCurrentMap() {
+  return getMapForLevel(G.currentLevel);
+}
 
 export function resetState() {
   G.health = 100;
@@ -81,13 +74,12 @@ export function resetState() {
   G.maxAmmo = 2;
   G.kills = 0;
   G.wave = 1;
-  G.currentLevel = 1;
   G.reloading = false;
   G.shootCooldown = 0;
   G.nextShotAtMs = 0;
   G.stamina = G.maxStamina;
-  player.x = 5 * CELL;
-  player.z = 5 * CELL;
+  player.x = 5 * CELL + CELL / 2;
+  player.z = 5 * CELL + CELL / 2;
   player.yaw = 0;
   player.pitch = 0;
   player.jumpVy = 0;

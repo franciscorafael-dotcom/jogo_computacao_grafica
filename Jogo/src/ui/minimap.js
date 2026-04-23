@@ -1,8 +1,11 @@
-export function createMinimap(map, cell, enemies, player) {
+export function createMinimap(mapOrGetter, cell, enemies, player) {
   const minimapCanvas = document.getElementById('minimap');
   const mmCtx = minimapCanvas.getContext('2d');
+  const getMap = typeof mapOrGetter === 'function' ? mapOrGetter : () => mapOrGetter;
 
   function drawMinimap() {
+    const map = getMap();
+    if (!map || !map.length || !map[0] || !map[0].length) return;
     const w = minimapCanvas.width;
     const h = minimapCanvas.height;
     const cw = w / map[0].length;

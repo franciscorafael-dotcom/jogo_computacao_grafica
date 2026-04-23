@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { G, player, MAP, CELL, resetState, applyDifficulty } from './core/state.js';
+import { G, player, CELL, resetState, applyDifficulty, getCurrentMap } from './core/state.js';
 import { createWorld, isWall } from './core/world.js';
 import { loadWorldProps, circleIntersectsPropCollider } from './core/worldProps.js';
 import { createHUD } from './ui/hud.js';
@@ -11,6 +11,110 @@ import { createCombat, updateBullets, clearBullets } from './systems/combat.js';
 import { updatePickups, clearPickups, preloadAmmoPickupModel } from './systems/pickups.js';
 import { bindPlayerInput, updatePlayer, clearInputState } from './systems/player.js';
 import { createAudioSystem } from './systems/audio.js';
+
+const menuPanels = {
+  main: document.getElementById('menuPanelMain'),
+  levels: document.getElementById('menuPanelLevels'),
+  settings: document.getElementById('menuPanelSettings'),
+  difficulty: document.getElementById('menuPanelDifficulty'),
+  lore: document.getElementById('menuPanelLore')
+};
+
+let pendingLevelId = 1;
+let audio = null;
+let loreViewer = {
+  show() {},
+  hide() {}
+};
+
+function showMenuView(viewId) {
+  Object.entries(menuPanels).forEach(([key, el]) => {
+    if (!el) return;
+    const on = key === viewId;
+    el.classList.toggle('menu-panel--hidden', !on);
+    if (on) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', '');
+  });
+  if (viewId === 'lore') loreViewer.show();
+  else loreViewer.hide();
+}
+
+function syncAudioSlidersFromAudio() {
+  if (!audio) return;
+  const mv = Math.round(audio.getMusicVolume01() * 100);
+  const sv = Math.round(audio.getSfxVolume01() * 100);
+  ['musicVolSlider', 'pauseMusicVolSlider'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(mv);
+  });
+  ['sfxVolSlider', 'pauseSfxVolSlider'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(sv);
+  });
+}
+
+function bindVolumeSlider(id, setFn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (!audio) return;
+    setFn(Number(el.value) / 100);
+    syncAudioSlidersFromAudio();
+  });
+}
+
+let menuBootstrapped = false;
+function setupMainMenu() {
+  if (menuBootstrapped) return;
+  menuBootstrapped = true;
+  bindVolumeSlider('musicVolSlider', (v) => audio.setMusicVolume01(v));
+  bindVolumeSlider('sfxVolSlider', (v) => audio.setSfxVolume01(v));
+  bindVolumeSlider('pauseMusicVolSlider', (v) => audio.setMusicVolume01(v));
+  bindVolumeSlider('pauseSfxVolSlider', (v) => audio.setSfxVolume01(v));
+  syncAudioSlidersFromAudio();
+
+  document.querySelectorAll('[data-menu-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-menu-action');
+      if (action === 'play') showMenuView('levels');
+      else if (action === 'settings') showMenuView('settings');
+      else if (action === 'lore') showMenuView('lore');
+    });
+  });
+
+  document.querySelectorAll('[data-menu-back]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const back = btn.getAttribute('data-menu-back');
+      if (back) showMenuView(back);
+    });
+  });
+
+  document.querySelectorAll('.menu-level-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const level = btn.getAttribute('data-level');
+      pendingLevelId = level ? Number(level) : 1;
+      showMenuView('difficulty');
+    });
+  });
+
+  document.querySelectorAll('#difficultyMenu [data-difficulty]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-difficulty');
+      window.startGame(key);
+    });
+  });
+
+  const pauseResume = document.getElementById('pauseBtnResume');
+  const pauseMenu = document.getElementById('pauseBtnMenu');
+  if (pauseResume) pauseResume.addEventListener('click', () => window.resumeGame());
+  if (pauseMenu) pauseMenu.addEventListener('click', () => window.backToMainMenu());
+}
+
+function initMenuUI() {
+  setupMainMenu();
+}
+
+initMenuUI();
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
@@ -47,115 +151,51 @@ lampLights[1].position.set(15 * CELL, 2, 4 * CELL);
 lampLights[2].position.set(4 * CELL, 2, 15 * CELL);
 lampLights[3].position.set(15 * CELL, 2, 15 * CELL);
 
-createWorld(scene);
-loadWorldProps(scene);
+const worldRoot = new THREE.Group();
+scene.add(worldRoot);
+function rebuildWorldForCurrentLevel() {
+  worldRoot.clear();
+  createWorld(worldRoot, getCurrentMap());
+  loadWorldProps(worldRoot).catch((err) => {
+    console.error('Failed to load world props for current level:', err);
+  });
+}
+rebuildWorldForCurrentLevel();
 perspCam.position.set(player.x, player.height, player.z);
 
 const hud = createHUD(G);
-const minimap = createMinimap(MAP, CELL, enemies, player);
+const minimap = createMinimap(() => getCurrentMap(), CELL, enemies, player);
 const weaponViewEl = document.getElementById('weaponView');
 const pauseScreenEl = document.getElementById('pauseScreen');
-const audio = createAudioSystem();
-audio.initAudioOnFirstUserGesture();
-preloadAmmoPickupModel();
+function initGameSystems() {
+  try {
+    audio = createAudioSystem();
+    audio.initAudioOnFirstUserGesture();
+    preloadAmmoPickupModel();
+  } catch (err) {
+    console.error('Core game systems failed to initialize:', err);
+    throw err;
+  }
 
-const menuPanels = {
-  main: document.getElementById('menuPanelMain'),
-  levels: document.getElementById('menuPanelLevels'),
-  settings: document.getElementById('menuPanelSettings'),
-  difficulty: document.getElementById('menuPanelDifficulty'),
-  lore: document.getElementById('menuPanelLore')
-};
-
-let pendingLevelId = 1;
-
-const loreViewer = createLoreViewer({
-  canvas: document.getElementById('loreModelCanvas'),
-  cardTitleEl: document.getElementById('loreCardTitle'),
-  cardTextEl: document.getElementById('loreCardText'),
-  dotsEl: document.getElementById('loreDots'),
-  prevBtn: document.getElementById('lorePrevBtn'),
-  nextBtn: document.getElementById('loreNextBtn')
-});
-
-function showMenuView(viewId) {
-  Object.entries(menuPanels).forEach(([key, el]) => {
-    if (!el) return;
-    const on = key === viewId;
-    el.classList.toggle('menu-panel--hidden', !on);
-    if (on) el.removeAttribute('hidden');
-    else el.setAttribute('hidden', '');
-  });
-  if (viewId === 'lore') loreViewer.show();
-  else loreViewer.hide();
+  try {
+    loreViewer = createLoreViewer({
+      canvas: document.getElementById('loreModelCanvas'),
+      cardTitleEl: document.getElementById('loreCardTitle'),
+      cardTextEl: document.getElementById('loreCardText'),
+      dotsEl: document.getElementById('loreDots'),
+      prevBtn: document.getElementById('lorePrevBtn'),
+      nextBtn: document.getElementById('loreNextBtn')
+    });
+  } catch (err) {
+    console.error('Lore viewer failed to initialize, menu remains available:', err);
+  }
 }
 
-function syncAudioSlidersFromAudio() {
-  const mv = Math.round(audio.getMusicVolume01() * 100);
-  const sv = Math.round(audio.getSfxVolume01() * 100);
-  ['musicVolSlider', 'pauseMusicVolSlider'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = String(mv);
-  });
-  ['sfxVolSlider', 'pauseSfxVolSlider'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = String(sv);
-  });
+try {
+  initGameSystems();
+} catch (err) {
+  console.error('Game boot failed after menu init. Menu interactions should still work.', err);
 }
-
-function bindVolumeSlider(id, setFn) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener('input', () => {
-    setFn(Number(el.value) / 100);
-    syncAudioSlidersFromAudio();
-  });
-}
-
-function setupMainMenu() {
-  bindVolumeSlider('musicVolSlider', (v) => audio.setMusicVolume01(v));
-  bindVolumeSlider('sfxVolSlider', (v) => audio.setSfxVolume01(v));
-  bindVolumeSlider('pauseMusicVolSlider', (v) => audio.setMusicVolume01(v));
-  bindVolumeSlider('pauseSfxVolSlider', (v) => audio.setSfxVolume01(v));
-  syncAudioSlidersFromAudio();
-
-  document.querySelectorAll('[data-menu-action]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const action = btn.getAttribute('data-menu-action');
-      if (action === 'play') showMenuView('levels');
-      else if (action === 'settings') showMenuView('settings');
-      else if (action === 'lore') showMenuView('lore');
-    });
-  });
-
-  document.querySelectorAll('[data-menu-back]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const back = btn.getAttribute('data-menu-back');
-      if (back) showMenuView(back);
-    });
-  });
-
-  document.querySelectorAll('.menu-level-btn:not(.is-locked)').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      pendingLevelId = Number(btn.getAttribute('data-level'), 10) || 1;
-      showMenuView('difficulty');
-    });
-  });
-
-  document.querySelectorAll('#difficultyMenu [data-difficulty]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-difficulty');
-      window.startGame(key);
-    });
-  });
-
-  const pauseResume = document.getElementById('pauseBtnResume');
-  const pauseMenu = document.getElementById('pauseBtnMenu');
-  if (pauseResume) pauseResume.addEventListener('click', () => window.resumeGame());
-  if (pauseMenu) pauseMenu.addEventListener('click', () => window.backToMainMenu());
-}
-
-setupMainMenu();
 
 const PLAYER_RADIUS = 0.35;
 function isPlayerBlocked(wx, wz) {
@@ -416,10 +456,11 @@ const combat = createCombat({
 });
 
 function toggleCamera() {
+  const map = getCurrentMap();
   if (G.cameraMode === 'perspective') {
     G.cameraMode = 'ortho';
-    orthoCam.position.set(MAP[0].length * CELL / 2, 40, MAP.length * CELL / 2);
-    orthoCam.lookAt(MAP[0].length * CELL / 2, 0, MAP.length * CELL / 2);
+    orthoCam.position.set(map[0].length * CELL / 2, 40, map.length * CELL / 2);
+    orthoCam.lookAt(map[0].length * CELL / 2, 0, map.length * CELL / 2);
     camera = orthoCam;
   } else {
     G.cameraMode = 'perspective';
@@ -692,9 +733,6 @@ function backToMainMenu() {
 }
 
 window.startGame = function startGame(difficultyKey) {
-  if (pendingLevelId !== 1) {
-    return;
-  }
   const allowed = ['easy', 'medium', 'hard', 'nightmare'];
   const selectedDifficulty = allowed.includes(difficultyKey) ? difficultyKey : 'medium';
   document.getElementById('overlay').style.display = 'none';
@@ -704,9 +742,11 @@ window.startGame = function startGame(difficultyKey) {
   clearEnemies(scene);
   clearBullets();
   clearPickups(scene);
+  const selectedLevel = pendingLevelId;
   resetState();
+  G.currentLevel = selectedLevel;
   applyDifficulty(selectedDifficulty);
-  G.currentLevel = pendingLevelId;
+  rebuildWorldForCurrentLevel();
   G.running = true;
   G.paused = false;
   weaponSwitch = null;
@@ -722,11 +762,14 @@ window.startGame = function startGame(difficultyKey) {
 };
 
 window.restartGame = function restartGame() {
+  const sameLevel = G.currentLevel;
   resetState();
+  G.currentLevel = sameLevel;
   applyDifficulty(G.difficultyKey);
   clearEnemies(scene);
   clearBullets();
   clearPickups(scene);
+  rebuildWorldForCurrentLevel();
   document.getElementById('deathScreen').style.display = 'none';
   document.getElementById('healthVal').classList.remove('low');
   G.running = true;
