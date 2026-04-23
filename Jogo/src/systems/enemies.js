@@ -1,6 +1,7 @@
 import { CELL, getCurrentMap } from '../core/state.js';
 import { createCyberdemonMob } from '../mobs/cyberdemonMob.js';
 import { createCacodemonMob } from '../mobs/cacodemonMob.js';
+import { isLevel3ArenaCell, isLevel3GateOpen } from '../core/level3Gate.js';
 
 export const enemies = [];
 
@@ -52,13 +53,15 @@ function restoreFlashMaterials(root) {
 }
 
 /** Células de chão (sem parede), longe do spawn do jogador (~célula 5,5). */
-function collectFloorSpawnTiles() {
+function collectFloorSpawnTiles(state) {
   const map = getCurrentMap();
+  const isLevel3 = state.currentLevel === 3;
   const cells = [];
   for (let row = 0; row < map.length; row++) {
     for (let col = 0; col < map[row].length; col++) {
       if (map[row][col] !== 0) continue;
       if (col >= 4 && col <= 6 && row >= 4 && row <= 6) continue;
+      if (isLevel3 && !isLevel3GateOpen() && isLevel3ArenaCell(row, col)) continue;
       cells.push([col, row]);
     }
   }
@@ -94,11 +97,12 @@ function makeCacoEnemy() {
 export function spawnWave(scene, wave, showMessage, state) {
   clearEnemies(scene);
   const map = getCurrentMap();
+  const isLevel3 = state.currentLevel === 3;
 
   const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
-  const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
+  const shouldSpawnBoss = isLevel3 ? wave >= 2 : (wave > 1 && wave % 3 === 0);
 
-  const floorTiles = collectFloorSpawnTiles();
+  const floorTiles = collectFloorSpawnTiles(state);
   const pool = shuffle(floorTiles);
   const used = new Set();
   const key = (c, r) => `${c},${r}`;
@@ -123,9 +127,10 @@ export function spawnWave(scene, wave, showMessage, state) {
   }
 
   if (shouldSpawnBoss) {
-    let bossTile = takeTile([10, 10]);
+    let bossTile = takeTile(isLevel3 ? [12, 16] : [10, 10]);
     if (!bossTile) {
       for (const [c, r] of shuffle(floorTiles)) {
+        if (isLevel3 && !isLevel3ArenaCell(r, c)) continue;
         const k = key(c, r);
         if (used.has(k) || map[r][c] !== 0) continue;
         used.add(k);

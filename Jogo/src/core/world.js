@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { CELL, getCurrentMap } from './state.js';
+import { CELL, G, getCurrentMap } from './state.js';
+import { buildLevel3DoorMesh, isLevel3GateBlockingCell, registerLevel3DoorMesh } from './level3Gate.js';
 
 function makeWallTexture() {
   const size = 64;
@@ -72,6 +73,14 @@ export function createWorld(scene, map = getCurrentMap()) {
     }
   }
 
+  if (G.currentLevel === 3) {
+    const door = buildLevel3DoorMesh(wallMat);
+    scene.add(door);
+    registerLevel3DoorMesh(door);
+  } else {
+    registerLevel3DoorMesh(null);
+  }
+
   const floorGeom = new THREE.PlaneGeometry(map[0].length * CELL, map.length * CELL);
   const floor = new THREE.Mesh(floorGeom, floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -90,5 +99,6 @@ export function isWall(wx, wz) {
   const col = Math.floor(wx / CELL);
   const row = Math.floor(wz / CELL);
   if (row < 0 || row >= map.length || col < 0 || col >= map[0].length) return true;
+  if (isLevel3GateBlockingCell(row, col)) return true;
   return map[row][col] === 1;
 }

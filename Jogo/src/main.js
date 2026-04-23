@@ -11,6 +11,7 @@ import { createCombat, updateBullets, clearBullets } from './systems/combat.js';
 import { updatePickups, clearPickups, preloadAmmoPickupModel } from './systems/pickups.js';
 import { bindPlayerInput, updatePlayer, clearInputState } from './systems/player.js';
 import { createAudioSystem } from './systems/audio.js';
+import { resetLevel3Gate } from './core/level3Gate.js';
 
 const menuPanels = {
   main: document.getElementById('menuPanelMain'),
@@ -154,6 +155,7 @@ lampLights[3].position.set(15 * CELL, 2, 15 * CELL);
 const worldRoot = new THREE.Group();
 scene.add(worldRoot);
 function rebuildWorldForCurrentLevel() {
+  if (G.currentLevel === 3) resetLevel3Gate();
   worldRoot.clear();
   createWorld(worldRoot, getCurrentMap());
   loadWorldProps(worldRoot).catch((err) => {

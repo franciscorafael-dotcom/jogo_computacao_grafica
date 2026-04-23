@@ -1,2 +1,4 @@
 - No final de cada jogada, quando o jogador morre, escreve o nome (máx: 4 caracteres) e no menu principal aparece uma tabela dos top 3 com mais kills/pontos/rondas/whatever
 - Minigun e corpo para o Doomguy
+- Modelo 3D para uma chave
+- Botão de interagir (E)
