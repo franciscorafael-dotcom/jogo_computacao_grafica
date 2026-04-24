@@ -12,6 +12,7 @@ import { updatePickups, clearPickups, preloadAmmoPickupModel } from './systems/p
 import { bindPlayerInput, updatePlayer, clearInputState } from './systems/player.js';
 import { createAudioSystem } from './systems/audio.js';
 import { resetLevel3Gate } from './core/level3Gate.js';
+import { spawnKey, updateKey, resetKey } from './core/key.js';
 
 const menuPanels = {
   main: document.getElementById('menuPanelMain'),
@@ -141,6 +142,28 @@ scene.add(dirLight);
 const pointLight = new THREE.PointLight(0xff2200, 2, 20);
 scene.add(pointLight);
 
+function applyLevelLighting(level) {
+  if (level === 3) {
+    scene.background = new THREE.Color(0x080808);
+    scene.fog = new THREE.Fog(0x080808, 10, 50);
+    ambientLight.color.set(0x223344);
+    ambientLight.intensity = 0.5;
+    dirLight.color.set(0x8899aa);
+    dirLight.intensity = 0.6;
+    pointLight.color.set(0x334455);
+    pointLight.intensity = 1.0;
+  } else {
+    scene.background = new THREE.Color(0x110000);
+    scene.fog = new THREE.Fog(0x110000, 10, 50);
+    ambientLight.color.set(0x331100);
+    ambientLight.intensity = 0.4;
+    dirLight.color.set(0xff6600);
+    dirLight.intensity = 0.8;
+    pointLight.color.set(0xff2200);
+    pointLight.intensity = 2.0;
+  }
+}
+
 const lampLights = [];
 for (let i = 0; i < 4; i++) {
   const l = new THREE.PointLight(0xffaa00, 1.5, 12);
@@ -156,11 +179,18 @@ const worldRoot = new THREE.Group();
 scene.add(worldRoot);
 function rebuildWorldForCurrentLevel() {
   if (G.currentLevel === 3) resetLevel3Gate();
+  applyLevelLighting(G.currentLevel);
   worldRoot.clear();
   createWorld(worldRoot, getCurrentMap());
   loadWorldProps(worldRoot).catch((err) => {
     console.error('Failed to load world props for current level:', err);
   });
+  if (G.currentLevel === 3) {
+    resetKey();
+    spawnKey(worldRoot);
+  } else {
+    resetKey();
+  }
 }
 rebuildWorldForCurrentLevel();
 perspCam.position.set(player.x, player.height, player.z);
@@ -680,6 +710,7 @@ function loop() {
   updateEnemies(t, { player, isWall, takeDamage, state: G }, 0.016);
   updateBullets(isWall);
   updatePickups(scene, player, G, hud.showWaveMsg, hud.updateHUD, hud.updateAmmoBar, t);
+  if (G.currentLevel === 3) updateKey(player, hud.showWaveMsg, 0.016);
   updateLights(t);
   try {
     updateWeaponRig(t);

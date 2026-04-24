@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { enemies } from './enemies.js';
 import { maybeSpawnPickup } from './pickups.js';
-import { openLevel3Gate } from '../core/level3Gate.js';
+
 import {
   getWeaponConfig,
   getCurrentAmmo,
@@ -125,10 +125,6 @@ export function createCombat(ctx) {
     if (enemies.every((e) => !e.alive)) {
       const clearedWave = state.wave;
       state.wave++;
-      if (state.currentLevel === 3 && clearedWave === 1) {
-        openLevel3Gate();
-        showWaveMsg('PORTA DA ARENA ABERTA!');
-      }
       state.ammoShotgun = 2;
       state.ammoMagnum = 6;
       state.reserveShotgun = Math.min(20, state.reserveShotgun + 10);

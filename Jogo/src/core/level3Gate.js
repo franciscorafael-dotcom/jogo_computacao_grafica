@@ -4,9 +4,9 @@ import { CELL } from './state.js';
 export const LEVEL3_DOOR = { row: 12, col: 10 };
 export const LEVEL3_ARENA = {
   minRow: 13,
-  maxRow: 20,
-  minCol: 8,
-  maxCol: 18
+  maxRow: 21,
+  minCol: 6,
+  maxCol: 22
 };
 
 let doorOpen = false;

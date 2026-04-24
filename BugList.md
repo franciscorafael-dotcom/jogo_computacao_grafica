@@ -1,0 +1,3 @@
+-inimigos da onda 3 estão com a escala muito pequena
+-bug no sistema de progressão (ondas infinitas ao invés do boss)
+-por vezes no nível 1 dificuldade fácil o inimigos não dão load

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { CELL } from './state.js';
+import { CELL, G } from './state.js';
 
 const loader = new GLTFLoader();
 
@@ -72,6 +72,9 @@ export function circleIntersectsPropCollider(px, pz, radius) {
  */
 export function loadWorldProps(scene) {
   propColliders.length = 0;
+  if (typeof G !== 'undefined' && G.currentLevel === 3) {
+    return Promise.resolve();
+  }
   const cache = new Map();
   const tasks = PROP_PLACEMENTS.map(async (spec) => {
     try {

@@ -1,6 +1,9 @@
 import { CELL, getCurrentMap } from '../core/state.js';
 import { createCyberdemonMob } from '../mobs/cyberdemonMob.js';
 import { createCacodemonMob } from '../mobs/cacodemonMob.js';
+import { createBeamZombieMob } from '../mobs/beamzombiemob.js';
+import { createReaperMob } from '../mobs/reapermob.js';
+import { createDemolisherMob } from '../mobs/demolishermob.js';
 import { isLevel3ArenaCell, isLevel3GateOpen } from '../core/level3Gate.js';
 
 export const enemies = [];
@@ -14,9 +17,12 @@ export const enemies = [];
 export const MOB_GROUND_LIFT = 0.72;
 export const MOB_YAW_OFFSET = 0;
 
-const CYBER_SCALE = 0.34;
-const CACO_SCALE = 0.3;
-const BOSS_CYBER_SCALE = CYBER_SCALE * 1.58;
+const CYBER_SCALE       = 0.34;
+const CACO_SCALE        = 0.3;
+const BOSS_CYBER_SCALE  = CYBER_SCALE * 1.58;
+const BEAMZOMBIE_SCALE  = 0.32;
+const REAPER_SCALE      = 0.30;
+const DEMOLISHER_SCALE  = 0.42;
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -94,50 +100,144 @@ function makeCacoEnemy() {
   };
 }
 
+function makeBeamZombieEnemy() {
+  const mob = createBeamZombieMob();
+  mob.applyScale(BEAMZOMBIE_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'beamzombie',
+    walkPhase: Math.random() * Math.PI * 2,
+    applyWalkPhase: mob.applyWalkPhase,
+    applyFloatAnimation: null
+  };
+}
+
+function makeReaperEnemy() {
+  const mob = createReaperMob();
+  mob.applyScale(REAPER_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'reaper',
+    walkPhase: Math.random() * Math.PI * 2,
+    applyWalkPhase: mob.applyWalkPhase,
+    applyFloatAnimation: null
+  };
+}
+
+function makeDemolisherBoss() {
+  const mob = createDemolisherMob();
+  mob.applyScale(DEMOLISHER_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'demolisher',
+    walkPhase: 0,
+    applyWalkPhase: mob.applyWalkPhase,
+    applyFloatAnimation: null
+  };
+}
+
 export function spawnWave(scene, wave, showMessage, state) {
   clearEnemies(scene);
   const map = getCurrentMap();
   const isLevel3 = state.currentLevel === 3;
-
-  const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
-  const shouldSpawnBoss = isLevel3 ? wave >= 2 : (wave > 1 && wave % 3 === 0);
 
   const floorTiles = collectFloorSpawnTiles(state);
   const pool = shuffle(floorTiles);
   const used = new Set();
   const key = (c, r) => `${c},${r}`;
 
-  function takeTile(preferredNear = null) {
-    const tryList = [];
-    if (preferredNear) {
-      const [pc, pr] = preferredNear;
-      for (const [c, r] of pool) {
-        if (Math.hypot(c - pc, r - pr) <= 4) tryList.push([c, r]);
-      }
-    }
-    const order = tryList.length ? shuffle(tryList).concat(shuffle(pool)) : pool;
+  function takeTile(filterFn = null) {
+    const order = shuffle(pool.slice());
     for (const [c, r] of order) {
       if (map[r][c] !== 0) continue;
       const k = key(c, r);
       if (used.has(k)) continue;
+      if (filterFn && !filterFn(r, c)) continue;
       used.add(k);
       return [c, r];
     }
     return null;
   }
 
-  if (shouldSpawnBoss) {
-    let bossTile = takeTile(isLevel3 ? [12, 16] : [10, 10]);
-    if (!bossTile) {
-      for (const [c, r] of shuffle(floorTiles)) {
-        if (isLevel3 && !isLevel3ArenaCell(r, c)) continue;
-        const k = key(c, r);
-        if (used.has(k) || map[r][c] !== 0) continue;
-        used.add(k);
-        bossTile = [c, r];
-        break;
+  // ── Nível 3: wave 1 = labirinto (beamzombies + reapers), wave 2+ = arena (demolisher boss) ──
+  if (isLevel3) {
+    if (wave === 1 || !isLevel3GateOpen()) {
+      // Wave 1 — inimigos do labirinto (fora da arena)
+      const labTiles = floorTiles.filter(([c, r]) => !isLevel3ArenaCell(r, c));
+      const labPool = shuffle(labTiles);
+      const count = Math.max(3, 4 + state.waveCountBonus);
+      const nSpawn = Math.min(count, labPool.length);
+      const kinds = shuffle([
+        ...Array(Math.ceil(nSpawn / 2)).fill('beamzombie'),
+        ...Array(Math.floor(nSpawn / 2)).fill('reaper')
+      ]).slice(0, nSpawn);
+
+      for (let i = 0; i < nSpawn; i++) {
+        const tile = labPool[i];
+        if (!tile) break;
+        const [col, row] = tile;
+        const x = col * CELL + CELL / 2;
+        const z = row * CELL + CELL / 2;
+        const built = kinds[i] === 'beamzombie' ? makeBeamZombieEnemy() : makeReaperEnemy();
+        built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+        scene.add(built.mesh);
+        enemies.push({
+          mesh: built.mesh, x, z,
+          alive: true, isBoss: false,
+          kind: built.kind,
+          health: (80 + wave * 10) * state.enemyHealthMult,
+          speed: (0.03 + Math.random() * 0.02) * state.enemySpeedMult,
+          attackCooldown: 0,
+          phase: Math.random() * Math.PI * 2,
+          hitFlash: 0,
+          walkPhase: built.walkPhase,
+          applyWalkPhase: built.applyWalkPhase,
+          applyFloatAnimation: built.applyFloatAnimation
+        });
       }
+      showMessage(`ONDA ${wave}`);
+      return;
     }
+
+    // Wave 2+ — boss Demolisher na arena
+    const arenaTiles = shuffle(
+      floorTiles.filter(([c, r]) => isLevel3ArenaCell(r, c))
+    );
+    const bossTile = arenaTiles[0] || null;
+    if (bossTile) {
+      const [col, row] = bossTile;
+      const x = col * CELL + CELL / 2;
+      const z = row * CELL + CELL / 2;
+      const built = makeDemolisherBoss();
+      built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+      scene.add(built.mesh);
+      enemies.push({
+        mesh: built.mesh, x, z,
+        alive: true, isBoss: true,
+        kind: built.kind,
+        health: (600 + wave * 60) * state.enemyHealthMult,
+        speed: 0.018 * state.enemySpeedMult,
+        attackCooldown: 0,
+        phase: Math.random() * Math.PI * 2,
+        hitFlash: 0,
+        walkPhase: built.walkPhase,
+        applyWalkPhase: built.applyWalkPhase,
+        applyFloatAnimation: built.applyFloatAnimation
+      });
+    }
+    showMessage(`ONDA ${wave} · BOSS`);
+    return;
+  }
+
+  // ── Níveis 1 e 2: lógica original ──────────────────────────────────
+  const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
+  const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
+
+  if (shouldSpawnBoss) {
+    const bossTile = takeTile();
     if (bossTile) {
       const [col, row] = bossTile;
       const x = col * CELL + CELL / 2;
@@ -146,11 +246,8 @@ export function spawnWave(scene, wave, showMessage, state) {
       built.mesh.position.set(x, MOB_GROUND_LIFT, z);
       scene.add(built.mesh);
       enemies.push({
-        mesh: built.mesh,
-        x,
-        z,
-        alive: true,
-        isBoss: true,
+        mesh: built.mesh, x, z,
+        alive: true, isBoss: true,
         kind: built.kind,
         health: (420 + wave * 40) * state.enemyHealthMult,
         speed: 0.02 * state.enemySpeedMult,
@@ -169,10 +266,7 @@ export function spawnWave(scene, wave, showMessage, state) {
   const nSpawn = Math.min(count, pool.length);
   let nCyber = Math.floor(nSpawn / 2);
   let nCaco = nSpawn - nCyber;
-  if (nSpawn % 2 === 1 && Math.random() < 0.5) {
-    nCyber++;
-    nCaco--;
-  }
+  if (nSpawn % 2 === 1 && Math.random() < 0.5) { nCyber++; nCaco--; }
   const kinds = shuffle([...Array(nCyber).fill('cyber'), ...Array(nCaco).fill('caco')]);
 
   for (let i = 0; i < nSpawn; i++) {
@@ -186,11 +280,8 @@ export function spawnWave(scene, wave, showMessage, state) {
     built.mesh.position.set(x, MOB_GROUND_LIFT, z);
     scene.add(built.mesh);
     enemies.push({
-      mesh: built.mesh,
-      x,
-      z,
-      alive: true,
-      isBoss: false,
+      mesh: built.mesh, x, z,
+      alive: true, isBoss: false,
       kind: built.kind,
       health: (100 + wave * 10) * state.enemyHealthMult,
       speed: (0.03 + Math.random() * 0.02) * state.enemySpeedMult,
@@ -202,7 +293,6 @@ export function spawnWave(scene, wave, showMessage, state) {
       applyFloatAnimation: built.applyFloatAnimation
     });
   }
-
   showMessage(`ONDA ${wave}`);
 }
 
@@ -221,7 +311,7 @@ export function updateEnemies(_t, ctx, dt = 0.016) {
     }
 
     const moving = dist > 1.5;
-    if (enemy.kind === 'cyber' && enemy.applyWalkPhase) {
+    if ((enemy.kind === 'cyber' || enemy.kind === 'beamzombie' || enemy.kind === 'reaper' || enemy.kind === 'demolisher') && enemy.applyWalkPhase) {
       enemy.walkPhase += dt * (moving ? 1.85 : 0.6);
       enemy.applyWalkPhase(enemy.walkPhase, moving);
     } else if (enemy.kind === 'caco' && enemy.applyFloatAnimation) {

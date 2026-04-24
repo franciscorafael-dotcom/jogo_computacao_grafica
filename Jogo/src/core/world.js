@@ -57,6 +57,20 @@ export function createWorld(scene, map = getCurrentMap()) {
     undefined,
     () => {}
   );
+
+  // Textura separada para o portão
+  const gateMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  texLoader.load(
+    './assets/portao.png',
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(1, 1);
+      gateMat.map = loaded;
+      gateMat.needsUpdate = true;
+    },
+    undefined,
+    () => {}
+  );
   const floorTex = makeFloorTexture();
   const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x666666 });
   const ceilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
@@ -74,7 +88,7 @@ export function createWorld(scene, map = getCurrentMap()) {
   }
 
   if (G.currentLevel === 3) {
-    const door = buildLevel3DoorMesh(wallMat);
+    const door = buildLevel3DoorMesh(gateMat);
     scene.add(door);
     registerLevel3DoorMesh(door);
   } else {

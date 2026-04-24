@@ -6,240 +6,153 @@ function shadow(mesh) {
   return mesh;
 }
 
-/**
- * BeamZombie — soldado corrompido com braço-canhão de plasma.
- * Materiais e geometria por instância (flash de dano não afeta outros inimigos).
- */
-export function createBeamZombieMob() {
-  // ── Materiais ──────────────────────────────────────────────────────
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: 0x4a7a4a,
-    roughness: 0.88,
-    metalness: 0.0
-  });
-  const armorMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2a35,
-    roughness: 0.5,
-    metalness: 0.7
-  });
-  const metalMat = new THREE.MeshStandardMaterial({
-    color: 0x556677,
-    roughness: 0.35,
-    metalness: 0.85
-  });
-  const eyeMat = new THREE.MeshStandardMaterial({
-    color: 0xff2200,
-    emissive: new THREE.Color(0xff2200),
-    emissiveIntensity: 3.0,
-    roughness: 0.1,
-    metalness: 0.0
-  });
-  const plasmaMat = new THREE.MeshStandardMaterial({
-    color: 0x00ffcc,
-    emissive: new THREE.Color(0x00ffcc),
-    emissiveIntensity: 2.0,
-    roughness: 0.1,
-    metalness: 0.1
-  });
+export function createDemolisherMob() {
+  const chassisMat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.45, metalness: 0.85 });
+  const legMat     = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5,  metalness: 0.75 });
+  const jointMat   = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3,  metalness: 0.9  });
+  const brainMat   = new THREE.MeshStandardMaterial({ color: 0xff6688, emissive: 0x880022, emissiveIntensity: 0.5, roughness: 0.75, metalness: 0.0 });
+  const veinMat    = new THREE.MeshStandardMaterial({ color: 0xff2244, emissive: 0xff0022, emissiveIntensity: 1.2, roughness: 0.2,  metalness: 0.0 });
+  const eyeMat     = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.5, roughness: 0.05, metalness: 0.0 });
+  const chaingunMat= new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.4, metalness: 0.85 });
+  const muzzleMat  = new THREE.MeshStandardMaterial({ color: 0xff8800, emissive: 0xff8800, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.0 });
+  const techMat    = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.4, metalness: 0.8 });
 
   const model = new THREE.Group();
 
-  // ── Pernas ────────────────────────────────────────────────────────
-  function buildLeg(side) {
+  const chassis = shadow(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1.7), chassisMat));
+  chassis.position.y = 1.2;
+  model.add(chassis);
+
+  [-1, 1].forEach((s) => {
+    const side = shadow(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.42, 1.5), legMat));
+    side.position.set(s * 1.15, 1.2, 0);
+    model.add(side);
+  });
+
+  [[-0.6, 0.6], [0.6, 0.6], [-0.6, -0.6], [0.6, -0.6]].forEach(([px, pz]) => {
+    const panel = shadow(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.1, 0.38), jointMat));
+    panel.position.set(px, 1.5, pz);
+    model.add(panel);
+  });
+
+  const spine = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.35, 0.85, 10), techMat));
+  spine.position.set(0, 1.88, 0);
+  model.add(spine);
+
+  const legGroups = [];
+  function buildSpiderLeg(side, zOff) {
     const g = new THREE.Group();
-
-    const thighGeo = new THREE.CylinderGeometry(0.22, 0.18, 0.55, 8);
-    const thigh = shadow(new THREE.Mesh(thighGeo, armorMat));
-    thigh.position.y = -0.28;
-    g.add(thigh);
-
-    const kneeGeo = new THREE.SphereGeometry(0.19, 8, 7);
-    const knee = shadow(new THREE.Mesh(kneeGeo, metalMat));
-    knee.position.y = -0.58;
+    g.position.set(side * 1.0, 1.2, zOff);
+    g.add(shadow(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 7), jointMat)));
+    const seg1 = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.88, 7), legMat));
+    seg1.position.set(side * 0.44, -0.22, 0.12 * Math.sign(zOff + 0.001));
+    seg1.rotation.z = side * 0.55; seg1.rotation.x = -0.3;
+    g.add(seg1);
+    const knee = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 7), jointMat));
+    knee.position.set(side * 0.78, -0.46, 0.18 * Math.sign(zOff + 0.001));
     g.add(knee);
-
-    const lowerLeg = new THREE.Group();
-    lowerLeg.position.y = -0.58;
-
-    const shinGeo = new THREE.CylinderGeometry(0.15, 0.13, 0.52, 8);
-    const shin = shadow(new THREE.Mesh(shinGeo, skinMat));
-    shin.position.y = -0.3;
-    lowerLeg.add(shin);
-
-    const bootGeo = new THREE.BoxGeometry(0.22, 0.14, 0.3);
-    const boot = shadow(new THREE.Mesh(bootGeo, armorMat));
-    boot.position.set(0, -0.62, 0.06);
-    lowerLeg.add(boot);
-
-    g.add(lowerLeg);
-    g.position.set(side * 0.22, 0, 0);
-    g.userData.lowerLeg = lowerLeg;
+    const seg2 = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.065, 0.95, 7), legMat));
+    seg2.position.set(side * 1.06, -0.86, 0.22 * Math.sign(zOff + 0.001));
+    seg2.rotation.z = side * 1.0; seg2.rotation.x = 0.58;
+    g.add(seg2);
+    const claw = shadow(new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.24, 6), jointMat));
+    claw.position.set(side * 1.28, -1.22, 0.28 * Math.sign(zOff + 0.001));
+    claw.rotation.z = side * 1.4; claw.rotation.x = 1.1;
+    g.add(claw);
+    model.add(g);
     return g;
   }
+  [-0.62, -0.21, 0.21, 0.62].forEach((z) => {
+    legGroups.push(buildSpiderLeg( 1, z));
+    legGroups.push(buildSpiderLeg(-1, z));
+  });
 
-  const legL = buildLeg(-1);
-  const legR = buildLeg(1);
-  model.add(legL);
-  model.add(legR);
+  const brainGroup = new THREE.Group();
+  brainGroup.position.set(0, 2.6, 0);
+  model.add(brainGroup);
 
-  // ── Pelve / cintura ───────────────────────────────────────────────
-  const pelvisGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.26, 10);
-  const pelvis = shadow(new THREE.Mesh(pelvisGeo, armorMat));
-  pelvis.position.y = 0.14;
-  model.add(pelvis);
+  const brainMesh = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.72, 16, 14), brainMat));
+  brainMesh.scale.set(1, 0.82, 0.92);
+  brainGroup.add(brainMesh);
 
-  // ── Torso ─────────────────────────────────────────────────────────
-  const abdoGeo = new THREE.CylinderGeometry(0.28, 0.32, 0.3, 10);
-  const abdo = shadow(new THREE.Mesh(abdoGeo, skinMat));
-  abdo.position.y = 0.44;
-  model.add(abdo);
+  [[0,0,0],[0.55,0.28,0],[-0.48,0.38,0],[0,0.48,0.48],[0,-0.38,0.42],[0,0,0.58],[0,0,-0.52],[0.28,-0.48,0]].forEach(([rx,ry,rz]) => {
+    const fold = shadow(new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.042, 6, 14), veinMat));
+    fold.rotation.set(rx, ry, rz);
+    fold.scale.set(0.9, 0.52, 0.9);
+    brainGroup.add(fold);
+  });
 
-  const chestGeo = new THREE.CylinderGeometry(0.36, 0.28, 0.42, 10);
-  const chest = shadow(new THREE.Mesh(chestGeo, armorMat));
-  chest.position.y = 0.77;
-  model.add(chest);
-
-  // Placa frontal
-  const plateGeo = new THREE.BoxGeometry(0.44, 0.28, 0.1);
-  const plate = shadow(new THREE.Mesh(plateGeo, metalMat));
-  plate.position.set(0, 0.8, 0.3);
-  model.add(plate);
-
-  // ── Pescoço ───────────────────────────────────────────────────────
-  const neckGeo = new THREE.CylinderGeometry(0.13, 0.18, 0.18, 8);
-  const neck = shadow(new THREE.Mesh(neckGeo, skinMat));
-  neck.position.y = 1.07;
-  model.add(neck);
-
-  // ── Cabeça ────────────────────────────────────────────────────────
-  const headGroup = new THREE.Group();
-  headGroup.position.y = 1.28;
-
-  const skullGeo = new THREE.SphereGeometry(0.24, 12, 10);
-  const skull = shadow(new THREE.Mesh(skullGeo, skinMat));
-  skull.scale.set(1, 1.05, 0.95);
-  headGroup.add(skull);
-
-  // Viseira do capacete
-  const visorGeo = new THREE.BoxGeometry(0.38, 0.1, 0.12);
-  const visor = shadow(new THREE.Mesh(visorGeo, armorMat));
-  visor.position.set(0, 0.1, 0.2);
-  headGroup.add(visor);
-
-  // Olho/sensor brilhante
-  const eyeGeo = new THREE.BoxGeometry(0.18, 0.05, 0.06);
-  const eyeMesh = shadow(new THREE.Mesh(eyeGeo, eyeMat));
-  eyeMesh.position.set(0, 0.1, 0.27);
-  headGroup.add(eyeMesh);
-
-  model.add(headGroup);
-
-  // ── Braço esquerdo (normal) ───────────────────────────────────────
-  const leftArm = new THREE.Group();
-
-  const luArmGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.42, 8);
-  const luArm = shadow(new THREE.Mesh(luArmGeo, skinMat));
-  luArm.rotation.z = -0.5;
-  luArm.position.set(-0.18, -0.22, 0);
-  leftArm.add(luArm);
-
-  const lfArmGeo = new THREE.CylinderGeometry(0.09, 0.08, 0.38, 8);
-  const lfArm = shadow(new THREE.Mesh(lfArmGeo, skinMat));
-  lfArm.rotation.z = -0.3;
-  lfArm.rotation.x = 0.2;
-  lfArm.position.set(-0.3, -0.6, 0.06);
-  leftArm.add(lfArm);
-
-  leftArm.position.set(-0.38, 0.94, 0);
-  model.add(leftArm);
-
-  // ── Braço direito — canhão de plasma ─────────────────────────────
-  const rightArm = new THREE.Group();
-
-  // Ombro metálico
-  const rShoulderGeo = new THREE.SphereGeometry(0.16, 8, 7);
-  const rShoulder = shadow(new THREE.Mesh(rShoulderGeo, metalMat));
-  rShoulder.position.set(0.1, -0.06, 0);
-  rightArm.add(rShoulder);
-
-  // Cano principal do canhão
-  const barrelGeo = new THREE.CylinderGeometry(0.09, 0.11, 0.62, 10);
-  const barrel = shadow(new THREE.Mesh(barrelGeo, metalMat));
-  barrel.rotation.x = Math.PI / 2 - 0.25;
-  barrel.rotation.z = 0.12;
-  barrel.position.set(0.18, -0.38, 0.1);
-  rightArm.add(barrel);
-
-  // Bobinas de plasma à volta do canhão
-  for (let i = 0; i < 3; i++) {
-    const coilGeo = new THREE.TorusGeometry(0.11, 0.022, 6, 12);
-    const coil = shadow(new THREE.Mesh(coilGeo, plasmaMat));
-    coil.position.set(0.18, -0.22 - i * 0.14, 0.06);
-    coil.rotation.x = Math.PI / 2 - 0.25;
-    coil.rotation.z = 0.12;
-    rightArm.add(coil);
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    const t = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.008, 0.65, 5), veinMat));
+    t.position.set(Math.cos(a) * 0.36, -0.52, Math.sin(a) * 0.32);
+    brainGroup.add(t);
   }
 
-  // Bocal de plasma (glow na ponta)
-  const muzzleGeo = new THREE.SphereGeometry(0.065, 8, 8);
-  const muzzle = shadow(new THREE.Mesh(muzzleGeo, plasmaMat));
-  muzzle.position.set(0.24, -0.72, 0.26);
-  rightArm.add(muzzle);
+  const bossEye = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), eyeMat));
+  bossEye.position.set(0, 0.06, 0.66);
+  brainGroup.add(bossEye);
 
-  // Tanque de energia nas costas do braço
-  const tankGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.28, 8);
-  const tank = shadow(new THREE.Mesh(tankGeo, plasmaMat));
-  tank.position.set(0.1, -0.18, -0.14);
-  tank.rotation.x = 0.3;
-  rightArm.add(tank);
+  const eyeRim = shadow(new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.04, 8, 16), techMat));
+  eyeRim.position.set(0, 0.06, 0.62);
+  brainGroup.add(eyeRim);
 
-  rightArm.position.set(0.38, 0.94, 0);
-  model.add(rightArm);
+  [[-0.33, 0.22, 0.58], [0.33, 0.22, 0.58]].forEach(([x, y, z]) => {
+    const sEye = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.072, 8, 7), eyeMat));
+    sEye.position.set(x, y, z);
+    brainGroup.add(sEye);
+  });
 
-  // ── Wrapper com alinhamento ao chão ──────────────────────────────
+  const crown = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.72, 0.2, 14, 1, true), techMat));
+  crown.position.y = -0.14;
+  brainGroup.add(crown);
+
+  const mount = shadow(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), techMat));
+  mount.position.set(1.14, 1.42, -0.24);
+  model.add(mount);
+
+  [{ dx: 0, dy: 0.1 }, { dx: 0.09, dy: -0.05 }, { dx: -0.09, dy: -0.05 }].forEach(({ dx, dy }) => {
+    const b = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.82, 8), chaingunMat));
+    b.rotation.x = Math.PI / 2;
+    b.position.set(1.14 + dx, 1.42 + dy, -0.65);
+    model.add(b);
+  });
+
+  const muzzle = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.082, 8, 8), muzzleMat));
+  muzzle.position.set(1.14, 1.42, -1.08);
+  model.add(muzzle);
+
   const wrapper = new THREE.Group();
   wrapper.add(model);
-  let alignOffset = 0;
 
-  // ── Animação ─────────────────────────────────────────────────────
-  let _glowT = 0;
+  const tempBox = new THREE.Box3().setFromObject(model);
+  const alignOffset = -tempBox.min.y;
+  model.position.y = alignOffset;
 
-  function applyScale(s) {
-    wrapper.scale.setScalar(s);
-    wrapper.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(wrapper);
-    alignOffset = -box.min.y;
-    model.position.y = alignOffset;
-  }
+  function applyScale(s) { wrapper.scale.setScalar(s); }
+
+  const chassisBaseY = 1.2 + alignOffset;
+  const spineBaseY   = 1.88 + alignOffset;
+  const brainBaseY   = 2.6 + alignOffset;
+  const mountBaseY   = 1.42 + alignOffset;
+  let _t = 0;
 
   function applyWalkPhase(phase, moving) {
-    _glowT += 0.05;
-
-    const swing = moving ? Math.sin(phase) * 0.45 : 0;
-
-    // Pernas
-    legL.rotation.x = swing;
-    legL.userData.lowerLeg.rotation.x = Math.max(0, swing) * 0.5;
-    legR.rotation.x = -swing;
-    legR.userData.lowerLeg.rotation.x = Math.max(0, -swing) * 0.5;
-
-    // Bob vertical
-    model.position.y = alignOffset + Math.abs(Math.sin(phase)) * 0.05;
-
-    // Braço esquerdo contrafase
-    leftArm.rotation.x = -swing * 0.5;
-
-    // Canhão aponta ligeiramente para a frente com bob
-    barrel.rotation.z = 0.12 + Math.sin(_glowT * 1.1) * 0.04;
-
-    // Cabeça
-    headGroup.position.y = 1.28 + Math.sin(phase) * 0.04;
-    headGroup.rotation.x = Math.sin(phase) * 0.12;
-
-    // Pulso do plasma
-    const pulse = 0.8 + Math.sin(_glowT * 3.0) * 0.5;
-    plasmaMat.emissiveIntensity = Math.max(0.3, pulse);
-    eyeMat.emissiveIntensity = 1.8 + Math.sin(_glowT * 4.5) * 0.8;
+    _t += moving ? 0.016 : 0.008;
+    const bob = Math.sin(_t * 1.6) * 0.15;
+    chassis.position.y    = chassisBaseY + bob;
+    spine.position.y      = spineBaseY   + bob;
+    brainGroup.position.y = brainBaseY   + bob;
+    mount.position.y      = mountBaseY   + bob;
+    legGroups.forEach((leg, i) => {
+      leg.rotation.x = Math.sin(phase * 1.4 + (i % 2 === 0 ? 0 : Math.PI)) * 0.3;
+      leg.position.y = chassisBaseY + bob;
+    });
+    brainGroup.rotation.x = Math.sin(_t * 0.34) * 0.045;
+    brainGroup.rotation.z = Math.sin(_t * 0.26 + 1.0) * 0.04;
+    veinMat.emissiveIntensity   = 1.0 + Math.sin(_t * 1.4) * 0.5;
+    eyeMat.emissiveIntensity    = 2.0 + Math.sin(_t * 2.0) * 1.0;
+    muzzleMat.emissiveIntensity = 0.8 + Math.sin(_t * 2.6) * 0.4;
   }
 
   return { root: wrapper, applyScale, applyWalkPhase };
