@@ -1,24 +1,23 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ─── Renderer ─────────────────────────────────────────────────────────────────
+// ─── Scene Setup ───────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050008);
+scene.fog = new THREE.Fog(0x050008, 30, 80);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 5, 20);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
+renderer.toneMappingExposure = 0.85;
 document.body.appendChild(renderer.domElement);
 
-// ─── Cena ─────────────────────────────────────────────────────────────────────
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050008);
-scene.fog = new THREE.Fog(0x050008, 30, 80);
-
-// ─── Câmara ───────────────────────────────────────────────────────────────────
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
-camera.position.set(0, 5, 20);
-
+// ─── Controls ──────────────────────────────────────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 3, 0);
 controls.enableDamping = true;
@@ -27,10 +26,11 @@ controls.minDistance = 5;
 controls.maxDistance = 45;
 controls.update();
 
-// ─── Iluminação ───────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x110014, 1.5));
+// ─── Lighting ──────────────────────────────────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0x221133, 2.5);
+scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xff3300, 2.2);
+const dirLight = new THREE.DirectionalLight(0xff3300, 3.5);
 dirLight.position.set(8, 20, 10);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(2048, 2048);
@@ -42,37 +42,40 @@ dirLight.shadow.camera.top = 20;
 dirLight.shadow.camera.bottom = -6;
 scene.add(dirLight);
 
-const rimLight = new THREE.DirectionalLight(0x440088, 1.0);
+const rimLight = new THREE.DirectionalLight(0x440088, 1.5);
 rimLight.position.set(-10, 8, -6);
 scene.add(rimLight);
 
-const brainGlow = new THREE.PointLight(0x00ffff, 5.0, 12);
+const fillLight = new THREE.DirectionalLight(0x112233, 1.0);
+fillLight.position.set(0, -3, 8);
+scene.add(fillLight);
+
+const brainGlow = new THREE.PointLight(0x00ffff, 6.0, 14);
 brainGlow.position.set(0, 5.5, 1.5);
 scene.add(brainGlow);
 
-const veinGlow = new THREE.PointLight(0xff0044, 2.5, 8);
+const veinGlow = new THREE.PointLight(0xff0044, 3.5, 10);
 veinGlow.position.set(0, 4.5, 0);
 scene.add(veinGlow);
 
-const groundLight = new THREE.PointLight(0x220033, 1.5, 14);
+const groundLight = new THREE.PointLight(0x440066, 2.0, 16);
 groundLight.position.set(0, 0.5, 0);
 scene.add(groundLight);
 
-// ─── Chão ─────────────────────────────────────────────────────────────────────
+// ─── Ground Platform ──────────────────────────────────────────────────────────
 const groundGeo = new THREE.CylinderGeometry(6.5, 6.5, 0.2, 40);
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x060005, roughness: 0.95, metalness: 0.15 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.position.y = -0.1;
+ground.position.y = -5.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Pentagrama duplo
 [4.5, 5.8].forEach((r) => {
   const mat = new THREE.LineBasicMaterial({ color: 0x330044 });
   const pts = [];
   for (let i = 0; i <= 5; i++) {
     const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-    pts.push(new THREE.Vector3(Math.cos(a) * r, 0.01, Math.sin(a) * r));
+    pts.push(new THREE.Vector3(Math.cos(a) * r, -5.38, Math.sin(a) * r));
   }
   scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
 });
@@ -81,7 +84,7 @@ const ringGeo = new THREE.TorusGeometry(5.5, 0.05, 6, 48);
 const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.7 });
 const ring = new THREE.Mesh(ringGeo, ringMat);
 ring.rotation.x = Math.PI / 2;
-ring.position.y = 0.02;
+ring.position.y = -5.38;
 scene.add(ring);
 
 // ─── Materiais ────────────────────────────────────────────────────────────────
@@ -91,16 +94,16 @@ function shadow(mesh) {
   return mesh;
 }
 
-const chassisMat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.45, metalness: 0.85 });
-const legMat     = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5,  metalness: 0.75 });
-const jointMat   = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3,  metalness: 0.9  });
-const brainMat   = new THREE.MeshStandardMaterial({
+const chassisMat  = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.45, metalness: 0.85 });
+const legMat      = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5,  metalness: 0.75 });
+const jointMat    = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3,  metalness: 0.9  });
+const brainMat    = new THREE.MeshStandardMaterial({
   color: 0xff6688, emissive: 0x880022, emissiveIntensity: 0.5, roughness: 0.75, metalness: 0.0
 });
-const veinMat    = new THREE.MeshStandardMaterial({
+const veinMat     = new THREE.MeshStandardMaterial({
   color: 0xff2244, emissive: 0xff0022, emissiveIntensity: 1.4, roughness: 0.2, metalness: 0.0
 });
-const eyeMat     = new THREE.MeshStandardMaterial({
+const eyeMat      = new THREE.MeshStandardMaterial({
   color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 3.0, roughness: 0.05, metalness: 0.0
 });
 const chaingunMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.4, metalness: 0.85 });
@@ -113,7 +116,6 @@ const techMat     = new THREE.MeshStandardMaterial({ color: 0x334455, roughness:
 const model = new THREE.Group();
 scene.add(model);
 
-// Chassis
 const chassis = shadow(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1.7), chassisMat));
 chassis.position.y = 1.2;
 model.add(chassis);
@@ -134,33 +136,26 @@ const spine = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.35, 0.85,
 spine.position.set(0, 1.88, 0);
 model.add(spine);
 
-// Pernas de aranha
 const legGroups = [];
 function buildSpiderLeg(side, zOff) {
   const g = new THREE.Group();
   g.position.set(side * 1.0, 1.2, zOff);
-
   g.add(shadow(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 7), jointMat)));
-
   const seg1 = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.88, 7), legMat));
   seg1.position.set(side * 0.44, -0.22, 0.12 * Math.sign(zOff + 0.001));
   seg1.rotation.z = side * 0.55; seg1.rotation.x = -0.3;
   g.add(seg1);
-
   const knee = shadow(new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 7), jointMat));
   knee.position.set(side * 0.78, -0.46, 0.18 * Math.sign(zOff + 0.001));
   g.add(knee);
-
   const seg2 = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.065, 0.95, 7), legMat));
   seg2.position.set(side * 1.06, -0.86, 0.22 * Math.sign(zOff + 0.001));
   seg2.rotation.z = side * 1.0; seg2.rotation.x = 0.58;
   g.add(seg2);
-
   const claw = shadow(new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.24, 6), jointMat));
   claw.position.set(side * 1.28, -1.22, 0.28 * Math.sign(zOff + 0.001));
   claw.rotation.z = side * 1.4; claw.rotation.x = 1.1;
   g.add(claw);
-
   model.add(g);
   return g;
 }
@@ -170,7 +165,6 @@ function buildSpiderLeg(side, zOff) {
   legGroups.push(buildSpiderLeg(-1, z));
 });
 
-// Cérebro
 const brainGroup = new THREE.Group();
 brainGroup.position.set(0, 2.6, 0);
 model.add(brainGroup);
@@ -224,7 +218,6 @@ const crown = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.72, 0.2, 
 crown.position.y = -0.14;
 brainGroup.add(crown);
 
-// Chaingun
 const mount = shadow(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), techMat));
 mount.position.set(1.14, 1.42, -0.24);
 model.add(mount);
@@ -248,10 +241,10 @@ const clock = new THREE.Clock();
 let walkPhase = 0;
 let _t = 0;
 
-const chassisBaseY  = 1.2;
-const spineBaseY    = 1.88;
-const brainBaseY    = 2.6;
-const mountBaseY    = 1.42;
+const chassisBaseY = 1.2;
+const spineBaseY   = 1.88;
+const brainBaseY   = 2.6;
+const mountBaseY   = 1.42;
 
 function animate() {
   requestAnimationFrame(animate);
@@ -279,8 +272,8 @@ function animate() {
   eyeMat.emissiveIntensity    = 2.0 + Math.sin(_t * 2.0) * 1.2;
   muzzleMat.emissiveIntensity = 0.8 + Math.sin(_t * 2.6) * 0.5;
 
-  brainGlow.intensity = 3.5 + Math.sin(_t * 2.0) * 2.0;
-  veinGlow.intensity  = 1.5 + Math.sin(_t * 1.4) * 1.0;
+  brainGlow.intensity = 4.5 + Math.sin(_t * 2.0) * 2.0;
+  veinGlow.intensity  = 2.0 + Math.sin(_t * 1.4) * 1.0;
 
   controls.update();
   renderer.render(scene, camera);
