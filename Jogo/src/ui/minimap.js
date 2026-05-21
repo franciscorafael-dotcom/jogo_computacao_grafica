@@ -14,9 +14,14 @@ export function createMinimap(mapOrGetter, cell, enemies, player) {
     mmCtx.fillRect(0, 0, w, h);
     for (let row = 0; row < map.length; row++) {
       for (let col = 0; col < map[row].length; col++) {
-        if (map[row][col] !== 1) continue;
-        mmCtx.fillStyle = '#663300';
-        mmCtx.fillRect(col * cw, row * ch, cw - 1, ch - 1);
+        const cell = map[row][col];
+        if (cell === 1) {
+          mmCtx.fillStyle = '#663300';
+          mmCtx.fillRect(col * cw, row * ch, cw - 1, ch - 1);
+        } else if (cell === 2) {
+          mmCtx.fillStyle = '#33aa44';
+          mmCtx.fillRect(col * cw, row * ch, cw - 1, ch - 1);
+        }
       }
     }
     for (const e of enemies) {

@@ -13,7 +13,7 @@ export const G = {
   weaponSwitching: false,
   kills: 0,
   wave: 1,
-  /** Nível de mapa (1 = implementado; 2+ reservados). */
+  /** Nível: 1 = UTAD; 2 = Hangar + ácido + Summoner/Imp; 3 = labirinto + boss. */
   currentLevel: 1,
   running: false,
   paused: false,
@@ -61,6 +61,17 @@ export function getCurrentMap() {
   return getMapForLevel(G.currentLevel);
 }
 
+export function getSpawnCellForLevel(level) {
+  if (level === 2) return { col: 3, row: 3 };
+  return { col: 5, row: 5 };
+}
+
+export function applySpawnForLevel(level) {
+  const { col, row } = getSpawnCellForLevel(level);
+  player.x = col * CELL + CELL / 2;
+  player.z = row * CELL + CELL / 2;
+}
+
 export function resetState() {
   G.health = 100;
   G.armor = 50;
@@ -78,8 +89,7 @@ export function resetState() {
   G.shootCooldown = 0;
   G.nextShotAtMs = 0;
   G.stamina = G.maxStamina;
-  player.x = 5 * CELL + CELL / 2;
-  player.z = 5 * CELL + CELL / 2;
+  applySpawnForLevel(G.currentLevel);
   player.yaw = 0;
   player.pitch = 0;
   player.jumpVy = 0;

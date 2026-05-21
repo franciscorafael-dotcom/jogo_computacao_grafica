@@ -4,7 +4,10 @@ import { createCacodemonMob } from '../mobs/cacodemonMob.js';
 import { createBeamZombieMob } from '../mobs/beamzombiemob.js';
 import { createReaperMob } from '../mobs/reapermob.js';
 import { createDemolisherMob } from '../mobs/demolishermob.js';
+import { createSummonerRig } from '../mobs/summonerModel.js';
+import { createImpRig } from '../mobs/impModel.js';
 import { isLevel3ArenaCell, isLevel3GateOpen } from '../core/level3Gate.js';
+import { getSpawnCellForLevel } from '../core/state.js';
 
 export const enemies = [];
 
@@ -23,6 +26,8 @@ const BOSS_CYBER_SCALE  = CYBER_SCALE * 1.58;
 const BEAMZOMBIE_SCALE  = 0.32;
 const REAPER_SCALE      = 0.30;
 const DEMOLISHER_SCALE  = 0.42;
+const SUMMONER_SCALE    = 0.34;
+const IMP_SCALE         = 0.58;
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -58,15 +63,16 @@ function restoreFlashMaterials(root) {
   });
 }
 
-/** Células de chão (sem parede), longe do spawn do jogador (~célula 5,5). */
+/** Células de chão (sem parede/ácido), longe do spawn do jogador. */
 function collectFloorSpawnTiles(state) {
   const map = getCurrentMap();
   const isLevel3 = state.currentLevel === 3;
+  const spawn = getSpawnCellForLevel(state.currentLevel);
   const cells = [];
   for (let row = 0; row < map.length; row++) {
     for (let col = 0; col < map[row].length; col++) {
       if (map[row][col] !== 0) continue;
-      if (col >= 4 && col <= 6 && row >= 4 && row <= 6) continue;
+      if (Math.abs(col - spawn.col) <= 1 && Math.abs(row - spawn.row) <= 1) continue;
       if (isLevel3 && !isLevel3GateOpen() && isLevel3ArenaCell(row, col)) continue;
       cells.push([col, row]);
     }
@@ -135,7 +141,36 @@ function makeDemolisherBoss() {
     kind: 'demolisher',
     walkPhase: 0,
     applyWalkPhase: mob.applyWalkPhase,
-    applyFloatAnimation: null
+    applyFloatAnimation: null,
+    tickAnimation: null
+  };
+}
+
+function makeSummonerEnemy(isBoss) {
+  const mob = createSummonerRig();
+  mob.applyScale(isBoss ? SUMMONER_SCALE * 1.35 : SUMMONER_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'summoner',
+    walkPhase: 0,
+    applyWalkPhase: null,
+    applyFloatAnimation: null,
+    tickAnimation: mob.update
+  };
+}
+
+function makeImpEnemy(isBoss) {
+  const mob = createImpRig();
+  mob.applyScale(isBoss ? IMP_SCALE * 1.25 : IMP_SCALE);
+  stashFlashOriginals(mob.root);
+  return {
+    mesh: mob.root,
+    kind: 'imp',
+    walkPhase: 0,
+    applyWalkPhase: null,
+    applyFloatAnimation: null,
+    tickAnimation: mob.update
   };
 }
 
@@ -232,7 +267,76 @@ export function spawnWave(scene, wave, showMessage, state) {
     return;
   }
 
-  // ── Níveis 1 e 2: lógica original ──────────────────────────────────
+  // ── Nível 2: Hangar — Summoner + Imp (~50% cada) ─────────────────
+  if (state.currentLevel === 2) {
+    const count = Math.max(2, 3 + wave + state.waveCountBonus);
+    const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
+
+    if (shouldSpawnBoss) {
+      const bossTile = takeTile();
+      if (bossTile) {
+        const [col, row] = bossTile;
+        const x = col * CELL + CELL / 2;
+        const z = row * CELL + CELL / 2;
+        const built = makeSummonerEnemy(true);
+        built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+        scene.add(built.mesh);
+        enemies.push({
+          mesh: built.mesh, x, z,
+          alive: true, isBoss: true,
+          kind: built.kind,
+          health: (380 + wave * 45) * state.enemyHealthMult,
+          speed: 0.022 * state.enemySpeedMult,
+          attackCooldown: 0,
+          phase: Math.random() * Math.PI * 2,
+          hitFlash: 0,
+          walkPhase: built.walkPhase,
+          applyWalkPhase: built.applyWalkPhase,
+          applyFloatAnimation: built.applyFloatAnimation,
+          tickAnimation: built.tickAnimation
+        });
+        showMessage(`ONDA ${wave} · SUMMONER`);
+        return;
+      }
+    }
+
+    const nSpawn = Math.min(count, pool.length);
+    const mobKinds = shuffle(
+      Array.from({ length: nSpawn }, (_, i) => (i < Math.ceil(nSpawn / 2) ? 'summoner' : 'imp'))
+    );
+
+    for (let i = 0; i < nSpawn; i++) {
+      const tile = takeTile();
+      if (!tile) break;
+      const [col, row] = tile;
+      const x = col * CELL + CELL / 2;
+      const z = row * CELL + CELL / 2;
+      const isSummoner = mobKinds[i] === 'summoner';
+      const built = isSummoner ? makeSummonerEnemy(false) : makeImpEnemy(false);
+      built.mesh.position.set(x, MOB_GROUND_LIFT, z);
+      scene.add(built.mesh);
+      enemies.push({
+        mesh: built.mesh, x, z,
+        alive: true, isBoss: false,
+        kind: built.kind,
+        health: (isSummoner ? 110 + wave * 12 : 85 + wave * 10) * state.enemyHealthMult,
+        speed: (isSummoner
+          ? 0.028 + Math.random() * 0.018
+          : 0.038 + Math.random() * 0.022) * state.enemySpeedMult,
+        attackCooldown: 0,
+        phase: Math.random() * Math.PI * 2,
+        hitFlash: 0,
+        walkPhase: built.walkPhase,
+        applyWalkPhase: built.applyWalkPhase,
+        applyFloatAnimation: built.applyFloatAnimation,
+        tickAnimation: built.tickAnimation
+      });
+    }
+    showMessage(`ONDA ${wave}`);
+    return;
+  }
+
+  // ── Nível 1: Cyberdemon + Cacodemon ──────────────────────────────
   const count = Math.max(2, 3 + wave * 2 + state.waveCountBonus);
   const shouldSpawnBoss = wave > 1 && wave % 3 === 0;
 
@@ -311,7 +415,9 @@ export function updateEnemies(_t, ctx, dt = 0.016) {
     }
 
     const moving = dist > 1.5;
-    if ((enemy.kind === 'cyber' || enemy.kind === 'beamzombie' || enemy.kind === 'reaper' || enemy.kind === 'demolisher') && enemy.applyWalkPhase) {
+    if ((enemy.kind === 'summoner' || enemy.kind === 'imp') && enemy.tickAnimation) {
+      enemy.tickAnimation(dt, moving);
+    } else if ((enemy.kind === 'cyber' || enemy.kind === 'beamzombie' || enemy.kind === 'reaper' || enemy.kind === 'demolisher') && enemy.applyWalkPhase) {
       enemy.walkPhase += dt * (moving ? 1.85 : 0.6);
       enemy.applyWalkPhase(enemy.walkPhase, moving);
     } else if (enemy.kind === 'caco' && enemy.applyFloatAnimation) {

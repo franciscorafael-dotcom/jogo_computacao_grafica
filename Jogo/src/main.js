@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-import { G, player, CELL, resetState, applyDifficulty, getCurrentMap } from './core/state.js';
+import { G, player, CELL, resetState, applyDifficulty, getCurrentMap, applySpawnForLevel } from './core/state.js';
+import { isAcidCellAt, updateAcidVisuals } from './core/level2Acid.js';
 import { createWorld, isWall } from './core/world.js';
 import { loadWorldProps, circleIntersectsPropCollider } from './core/worldProps.js';
 import { createHUD } from './ui/hud.js';
@@ -152,6 +153,15 @@ function applyLevelLighting(level) {
     dirLight.intensity = 0.6;
     pointLight.color.set(0x334455);
     pointLight.intensity = 1.0;
+  } else if (level === 2) {
+    scene.background = new THREE.Color(0x0a1208);
+    scene.fog = new THREE.Fog(0x0a1208, 10, 50);
+    ambientLight.color.set(0x1a3320);
+    ambientLight.intensity = 0.45;
+    dirLight.color.set(0x88aa66);
+    dirLight.intensity = 0.65;
+    pointLight.color.set(0x44cc55);
+    pointLight.intensity = 1.4;
   } else {
     scene.background = new THREE.Color(0x110000);
     scene.fog = new THREE.Fog(0x110000, 10, 50);
@@ -694,6 +704,8 @@ function die() {
 }
 
 let frameCount = 0;
+let acidDamageCooldown = 0;
+
 function loop() {
   if (!G.running) return;
   requestAnimationFrame(loop);
@@ -711,6 +723,16 @@ function loop() {
   updateBullets(isWall);
   updatePickups(scene, player, G, hud.showWaveMsg, hud.updateHUD, hud.updateAmmoBar, t);
   if (G.currentLevel === 3) updateKey(player, hud.showWaveMsg, 0.016);
+  if (G.currentLevel === 2) {
+    updateAcidVisuals(t);
+    if (isAcidCellAt(player.x, player.z)) {
+      acidDamageCooldown -= 0.016;
+      if (acidDamageCooldown <= 0) {
+        takeDamage(3);
+        acidDamageCooldown = 0.25;
+      }
+    }
+  }
   updateLights(t);
   try {
     updateWeaponRig(t);
@@ -776,10 +798,13 @@ window.startGame = function startGame(difficultyKey) {
   clearBullets();
   clearPickups(scene);
   const selectedLevel = pendingLevelId;
-  resetState();
   G.currentLevel = selectedLevel;
+  resetState();
   applyDifficulty(selectedDifficulty);
   rebuildWorldForCurrentLevel();
+  applySpawnForLevel(selectedLevel);
+  perspCam.position.set(player.x, player.height, player.z);
+  acidDamageCooldown = 0;
   G.running = true;
   G.paused = false;
   weaponSwitch = null;
@@ -803,6 +828,9 @@ window.restartGame = function restartGame() {
   clearBullets();
   clearPickups(scene);
   rebuildWorldForCurrentLevel();
+  applySpawnForLevel(sameLevel);
+  perspCam.position.set(player.x, player.height, player.z);
+  acidDamageCooldown = 0;
   document.getElementById('deathScreen').style.display = 'none';
   document.getElementById('healthVal').classList.remove('low');
   G.running = true;

@@ -11,10 +11,16 @@ export const propColliders = [];
  * Props ainda presentes em assets/objects (barrel x2 + estação de emergência).
  * row/col = índices do MAP (0 = chão livre).
  */
-const PROP_PLACEMENTS = [
+const PROP_PLACEMENTS_LEVEL_1 = [
   { url: './assets/objects/barrel/scene.gltf', row: 7, col: 3, yRot: 0.15, targetHeight: 1.05 },
   { url: './assets/objects/barrel/scene.gltf', row: 14, col: 16, yRot: 1.05, targetHeight: 1.05 },
   { url: './assets/objects/emergency_power_station_ps1/scene.gltf', row: 8, col: 9, yRot: -0.35, targetHeight: 2.2 }
+];
+
+const PROP_PLACEMENTS_LEVEL_2 = [
+  { url: './assets/objects/barrel/scene.gltf', row: 5, col: 2, yRot: 0.4, targetHeight: 1.05 },
+  { url: './assets/objects/barrel/scene.gltf', row: 7, col: 16, yRot: 2.1, targetHeight: 1.05 },
+  { url: './assets/objects/emergency_power_station_ps1/scene.gltf', row: 15, col: 10, yRot: 0.2, targetHeight: 2.2 }
 ];
 
 function placeScaledRoot(scene, root, row, col, yRot, targetHeight) {
@@ -75,8 +81,12 @@ export function loadWorldProps(scene) {
   if (typeof G !== 'undefined' && G.currentLevel === 3) {
     return Promise.resolve();
   }
+  const placements =
+    typeof G !== 'undefined' && G.currentLevel === 2
+      ? PROP_PLACEMENTS_LEVEL_2
+      : PROP_PLACEMENTS_LEVEL_1;
   const cache = new Map();
-  const tasks = PROP_PLACEMENTS.map(async (spec) => {
+  const tasks = placements.map(async (spec) => {
     try {
       let gltf = cache.get(spec.url);
       if (!gltf) {

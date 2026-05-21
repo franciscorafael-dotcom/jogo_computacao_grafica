@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CELL, G, getCurrentMap } from './state.js';
 import { buildLevel3DoorMesh, isLevel3GateBlockingCell, registerLevel3DoorMesh } from './level3Gate.js';
+import { buildAcidMeshes, clearAcidMeshes } from './level2Acid.js';
 
 function makeWallTexture() {
   const size = 64;
@@ -46,12 +47,15 @@ export function createWorld(scene, map = getCurrentMap()) {
   const wallTex = makeWallTexture();
   const wallMat = new THREE.MeshLambertMaterial({ map: wallTex });
   const texLoader = new THREE.TextureLoader();
+  const wallTexturePath =
+    G.currentLevel === 2 ? './assets/textura_metal.jpeg' : './assets/parede1.png';
   texLoader.load(
-    './assets/parede1.png',
+    wallTexturePath,
     (loaded) => {
       loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
-      loaded.repeat.set(1, 1);
+      loaded.repeat.set(G.currentLevel === 2 ? 2 : 1, G.currentLevel === 2 ? 2 : 1);
       wallMat.map = loaded;
+      wallMat.color.setHex(0xffffff);
       wallMat.needsUpdate = true;
     },
     undefined,
@@ -106,6 +110,12 @@ export function createWorld(scene, map = getCurrentMap()) {
   ceil.rotation.x = Math.PI / 2;
   ceil.position.set(map[0].length * CELL / 2, CELL * 1.2, map.length * CELL / 2);
   scene.add(ceil);
+
+  if (G.currentLevel === 2) {
+    buildAcidMeshes(scene, map);
+  } else {
+    clearAcidMeshes(scene);
+  }
 }
 
 export function isWall(wx, wz) {
