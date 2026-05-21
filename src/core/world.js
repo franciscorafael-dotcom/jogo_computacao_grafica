@@ -1,0 +1,128 @@
+import * as THREE from 'three';
+import { CELL, G, getCurrentMap } from './state.js';
+import { buildLevel3DoorMesh, isLevel3GateBlockingCell, registerLevel3DoorMesh } from './level3Gate.js';
+import { buildAcidMeshes, clearAcidMeshes } from './level2Acid.js';
+
+function makeWallTexture() {
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#4a2800';
+  ctx.fillRect(0, 0, size, size);
+  for (let y = 0; y < size; y += 8) {
+    const offset = (Math.floor(y / 8) % 2) * 16;
+    for (let x = -16; x < size; x += 32) {
+      ctx.fillStyle = `hsl(15, 50%, ${18 + Math.random() * 8}%)`;
+      ctx.fillRect(x + offset + 1, y + 1, 30, 6);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makeFloorTexture() {
+  const tex = new THREE.TextureLoader().load('./assets/floor.png', undefined, undefined, () => {
+    // Fallback to procedural if fails
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    for (let y = 0; y < size; y += 16) {
+      for (let x = 0; x < size; x += 16) {
+        const v = 20 + Math.random() * 15;
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(x, y, 15, 15);
+      }
+    }
+    return new THREE.CanvasTexture(c);
+  });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  return tex;
+}
+
+export function createWorld(scene, map = getCurrentMap()) {
+  const wallTex = makeWallTexture();
+  const wallMat = new THREE.MeshLambertMaterial({ map: wallTex });
+  const texLoader = new THREE.TextureLoader();
+  const wallTexturePath =
+    G.currentLevel === 2 ? './assets/textura_metal.jpeg' : './assets/parede1.png';
+  texLoader.load(
+    wallTexturePath,
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(G.currentLevel === 2 ? 2 : 1, G.currentLevel === 2 ? 2 : 1);
+      wallMat.map = loaded;
+      wallMat.color.setHex(0xffffff);
+      wallMat.needsUpdate = true;
+    },
+    undefined,
+    () => {}
+  );
+
+  // Textura separada para o portão
+  const gateMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  texLoader.load(
+    './assets/portao.png',
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(1, 1);
+      gateMat.map = loaded;
+      gateMat.needsUpdate = true;
+    },
+    undefined,
+    () => {}
+  );
+  const floorTex = makeFloorTexture();
+  const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x666666 });
+  const ceilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+
+  const wallGeom = new THREE.BoxGeometry(CELL, CELL * 1.2, CELL);
+  for (let row = 0; row < map.length; row++) {
+    for (let col = 0; col < map[row].length; col++) {
+      if (map[row][col] !== 1) continue;
+      const wall = new THREE.Mesh(wallGeom, wallMat);
+      wall.position.set(col * CELL + CELL / 2, CELL * 0.6, row * CELL + CELL / 2);
+      wall.receiveShadow = true;
+      wall.castShadow = true;
+      scene.add(wall);
+    }
+  }
+
+  if (G.currentLevel === 3) {
+    const door = buildLevel3DoorMesh(gateMat);
+    scene.add(door);
+    registerLevel3DoorMesh(door);
+  } else {
+    registerLevel3DoorMesh(null);
+  }
+
+  const floorGeom = new THREE.PlaneGeometry(map[0].length * CELL, map.length * CELL);
+  const floor = new THREE.Mesh(floorGeom, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(map[0].length * CELL / 2, 0, map.length * CELL / 2);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const ceil = new THREE.Mesh(floorGeom, ceilMat);
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(map[0].length * CELL / 2, CELL * 1.2, map.length * CELL / 2);
+  scene.add(ceil);
+
+  if (G.currentLevel === 2) {
+    buildAcidMeshes(scene, map);
+  } else {
+    clearAcidMeshes(scene);
+  }
+}
+
+export function isWall(wx, wz) {
+  const map = getCurrentMap();
+  const col = Math.floor(wx / CELL);
+  const row = Math.floor(wz / CELL);
+  if (row < 0 || row >= map.length || col < 0 || col >= map[0].length) return true;
+  if (isLevel3GateBlockingCell(row, col)) return true;
+  return map[row][col] === 1;
+}
