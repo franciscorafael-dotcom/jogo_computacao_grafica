@@ -1,0 +1,11 @@
+Model Information:
+* title:	PSX Sawed off Remington 1900
+* source:	https://sketchfab.com/3d-models/psx-sawed-off-remington-1900-0e73b7d193154536b66f270899d4e2d8
+* author:	braindeadrat (https://sketchfab.com/braindeadrat_x)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "PSX Sawed off Remington 1900" (https://sketchfab.com/3d-models/psx-sawed-off-remington-1900-0e73b7d193154536b66f270899d4e2d8) by braindeadrat (https://sketchfab.com/braindeadrat_x) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

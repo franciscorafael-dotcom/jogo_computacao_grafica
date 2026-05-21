@@ -1,0 +1,8 @@
+Model Information:
+* title:	PSX 357 Magnum Revolver
+* source:	https://sketchfab.com/3d-models/psx-357-magnum-revolver-7f8b565bee8249fd9bf4d226cf9ed0de
+* author:	Charckes (https://sketchfab.com/charlesmoch)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works

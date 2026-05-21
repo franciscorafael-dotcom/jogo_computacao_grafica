@@ -1,0 +1,11 @@
+Model Information:
+* title:	Emergency Power Station (PS1)
+* source:	https://sketchfab.com/3d-models/emergency-power-station-ps1-389f5331f49744dfa82a45fabb75d740
+* author:	S1lMoon (https://sketchfab.com/s1lmoon)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Emergency Power Station (PS1)" (https://sketchfab.com/3d-models/emergency-power-station-ps1-389f5331f49744dfa82a45fabb75d740) by S1lMoon (https://sketchfab.com/s1lmoon) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
